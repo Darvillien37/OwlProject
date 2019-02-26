@@ -46,25 +46,70 @@
 using namespace std;
 using namespace cv;
 
+//Moved to global variables.
+ostringstream CMDstream; // string packet
+string CMD;
 
+string source ="http://10.0.0.10:8080/stream/video.mjpeg"; // was argv[1];           // the source file name
+string PiADDR = "10.0.0.10";
+
+//SETUP TCP COMMS
+int PORT=12345;
+SOCKET u_sock;
+
+string RxPacket;
+
+void SendData() {
+    //Check if
+    if (Rx < RxLm) {
+        Rx = RxLm;
+    }
+    if (Rx > RxRm) {
+        Rx = RxRm;
+    }
+    if (Ry < RyBm) {
+        Ry = RyBm;
+    }
+    if (Ry > RyTm) {
+        Ry = RyTm;
+    }
+    if (Lx < LxLm) {
+        Lx = LxLm;
+    }
+    if (Lx > LxRm) {
+        Lx = LxRm;
+    }
+    if (Ly > LyBm) {
+        Ly = LyBm;
+    }
+    if (Ly < LyTm) {
+        Ly = LyTm;
+    }
+    if (Neck > NeckL) {
+        Neck = NeckL;
+    }
+    if (Neck < NeckR) {
+        Neck = NeckR;
+    }
+    CMDstream.str("");
+    CMDstream.clear();
+    CMDstream << Rx << " " << Ry << " " << Lx << " " << Ly << " " << Neck;
+    CMD = CMDstream.str();
+#ifdef _WIN32
+    RxPacket= OwlSendPacket (u_sock, CMD.c_str());
+#else
+    OwlSendPacket (clientSock, CMD.c_str());
+#endif
+}
 
 int main(int argc, char *argv[])
 {
     char receivedStr[1024];
-    ostringstream CMDstream; // string packet
-    string CMD;
     int N;
 
     Rx = RxLm; Lx = LxLm;
     Ry = RyC; Ly = LyC;
     Neck= NeckC;
-
-    string source ="http://10.0.0.10:8080/stream/video.mjpeg"; // was argv[1];           // the source file name
-    string PiADDR = "10.0.0.10";
-
-    //SETUP TCP COMMS
-    int PORT=12345;
-    SOCKET u_sock = OwlCommsInit ( PORT, PiADDR);
 
     /***********************
  * LOOP continuously for testing
@@ -75,6 +120,7 @@ int main(int argc, char *argv[])
     Ry = RyC;
     Ly = LyC;
     Neck= NeckC;
+    u_sock = OwlCommsInit ( PORT, PiADDR);
 
     const Mat OWLresult;// correlation result passed back from matchtemplate
     cv::Mat Frame;
@@ -89,7 +135,7 @@ int main(int argc, char *argv[])
         CMDstream << Rx << " " << Ry << " " << Lx << " " << Ly << " " << Neck;
         CMD = CMDstream.str();
         cout<<"Ping\n";
-        string RxPacket= OwlSendPacket (u_sock, CMD.c_str());
+        RxPacket = OwlSendPacket (u_sock, CMD.c_str());
         cout<<"Ping2\n";
 
         VideoCapture cap (source);              // Open input
@@ -168,12 +214,8 @@ int main(int argc, char *argv[])
                 key=key;
                 //nothing at present
             }
-
-            CMDstream.str("");
-            CMDstream.clear();
-            CMDstream << Rx << " " << Ry << " " << Lx << " " << Ly << " " << Neck;
-            CMD = CMDstream.str();
-            RxPacket= OwlSendPacket (u_sock, CMD.c_str());
+            SendData();
+            //RxPacket= OwlSendPacket (u_sock, CMD.c_str());
 
         } // END cursor control loop
 
@@ -248,16 +290,7 @@ int main(int argc, char *argv[])
 
             // move to get minimise distance from centre of both images, ie verge in to targe
             // move servos to position
-            CMDstream.str("");
-            CMDstream.clear();
-            CMDstream << Rx << " " << Ry << " " << Lx << " " << Ly << " " << Neck;
-            CMD = CMDstream.str();
-#ifdef _WIN32
-            RxPacket= OwlSendPacket (u_sock, CMD.c_str());
-#else
-            OwlSendPacket (clientSock, CMD.c_str());
-#endif
-
+            SendData();
 
         } // end if ZMCC
     } // end while outer loop
