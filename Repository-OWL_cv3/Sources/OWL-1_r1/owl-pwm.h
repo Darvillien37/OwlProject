@@ -69,3 +69,8 @@ static int LyPx2Deg = vFOV / LyRangeV;
 //160 degree of servo control
 static float RxDeg2PWM = RxRangeM / eyeMaxDeg;
 static int LxDeg2PWM = LxRangeM / eyeMaxDeg;
+
+static float rightRads = 0;
+static float leftRads = 0;
+
+static float distance = 0;

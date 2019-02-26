@@ -105,10 +105,14 @@ void SendData() {
 #endif
 }
 
-int CalculateDistance() {
-    int result = 0;
+void CalculateDistance() {
+    float p1 = pow((IPD * cos(rightRads)) / sin(rightRads + leftRads), 2);
+    float p2 = pow(IPD, 2) / 4;
+    float p3 = (IPD * cos(rightRads)) / sin(rightRads + leftRads);
+    float p4 = (p3 * IPD * sin(leftRads));
 
-    return result;
+    calcDistance = sqrt((p1 + p2) - p4);
+
 }
 int main(int argc, char *argv[])
 {
@@ -240,6 +244,15 @@ int main(int argc, char *argv[])
                 cout  << "Could not open the input video: " << source << endl;
                 break;
             }
+
+            //Radians for both eyes, used for distance calculations.
+            rightRads = (float(Rx-RxC)*M_PI) / (RxDeg2PWM * 180);
+            leftRads = (float(Lx-LxC)*M_PI) / (LxDeg2PWM * 180);
+
+            CalculateDistance();
+
+            cout << "Distance: " << calcDistance << "mm" << endl;
+
             Mat FrameFlpd; cv::flip(Frame,FrameFlpd,1); // Note that Left/Right are reversed now
             //Mat Gray; cv::cvtColor(Frame, Gray, cv::COLOR_BGR2GRAY);
             // Split into LEFT and RIGHT images from the stereo pair sent as one MJPEG iamge
