@@ -91,8 +91,7 @@ void SendData() {
     if (Neck < NeckR) {
         Neck = NeckR;
     }
-    //Find angles of servos in radians
-    cout << "Radians: " << (float(Rx-RxC)*M_PI) / (RxDeg2PWM * 180) << endl;
+
 
     CMDstream.str("");
     CMDstream.clear();
@@ -106,14 +105,17 @@ void SendData() {
 }
 
 void CalculateDistance() {
-    float p1 = pow((IPD * cos(rightRads)) / sin(rightRads + leftRads), 2);
-    float p2 = pow(IPD, 2) / 4;
-    float p3 = (IPD * cos(rightRads)) / sin(rightRads + leftRads);
-    float p4 = (p3 * IPD * sin(leftRads));
+    //dL = distanceLeft, p1, p2, p3 = part1, part2 and part3 respectively of distance formula.
+    float dL = (IPD * cos(rightRads)) / sin(rightRads + leftRads);
 
-    calcDistance = sqrt((p1 + p2) - p4);
+    float p1 = pow(dL, 2);
+    float p2 = pow(IPD, 2) / 4;
+    float p3 = (dL * IPD * sin(leftRads));
+
+    calcDistance = sqrt((p1 + p2) - p3);
 
 }
+
 int main(int argc, char *argv[])
 {
     char receivedStr[1024];
