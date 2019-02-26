@@ -1,7 +1,13 @@
+#define _USE_MATH_DEFINES
+#include <math.h>
+
 #ifndef OWLPWM_HPP
 #define OWLPWM_HPP
 
 #endif // OWLPWM_HPP
+
+
+
 
 // Defines for servo limits
 // PFC Owl robot
@@ -46,5 +52,20 @@ static int RxRangeV=RxRv-RxLv;
 static int LyRangeV=LyTv-LyBv; // reflected so negative
 static int LxRangeV=LxRv-LxLv;
 
+static int eyeMaxDeg = 160;
+static int eyeMinDeg = 0;
 
 static int IPD = 67;//mm, interp pupelary distance
+
+static int hFOV = 53; // degrees
+static int vFOV = 40; // degrees
+static int dFOV = 66; // degrees
+
+static int RxPx2Deg = hFOV / RxRangeV;
+static int RyPx2Deg = vFOV / RyRangeV;
+static int LxPx2Deg = hFOV / LxRangeV;
+static int LyPx2Deg = vFOV / LyRangeV;
+
+//160 degree of servo control
+static float RxDeg2PWM = RxRangeM / eyeMaxDeg;
+static int LxDeg2PWM = LxRangeM / eyeMaxDeg;

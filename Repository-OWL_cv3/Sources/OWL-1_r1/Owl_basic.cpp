@@ -91,6 +91,9 @@ void SendData() {
     if (Neck < NeckR) {
         Neck = NeckR;
     }
+    //Find angles of servos in radians
+    cout << "Radians: " << (float(Rx-RxC)*M_PI) / (RxDeg2PWM * 180) << endl;
+
     CMDstream.str("");
     CMDstream.clear();
     CMDstream << Rx << " " << Ry << " " << Lx << " " << Ly << " " << Neck;
@@ -102,6 +105,11 @@ void SendData() {
 #endif
 }
 
+int CalculateDistance() {
+    int result = 0;
+
+    return result;
+}
 int main(int argc, char *argv[])
 {
     char receivedStr[1024];
