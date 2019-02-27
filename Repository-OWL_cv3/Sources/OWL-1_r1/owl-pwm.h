@@ -66,10 +66,10 @@ static int LyTv = 1290; //(top)
 static int LxRv = 1780; // (right) to
 static int LxLv = 1265; // (left)
 
-static int RxC=1565;//1545;
-static int RyC=1525;//1460;
-static int LxC=1520;//1545;
-static int LyC=1505;//1560;
+static int RxC=1560;//1545;
+static int RyC=1535;//1460;
+static int LxC=1505;//1545;
+static int LyC=1480;//1560;
 static int NeckC = 1490;
 
 
