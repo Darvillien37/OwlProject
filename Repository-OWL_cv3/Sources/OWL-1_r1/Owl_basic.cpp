@@ -257,7 +257,7 @@ int main(int argc, char *argv[])
             }
 
             CalculateDistance();
-            cout << "Rx: " << Rx << "   Lx: " << Lx << "   Distance: " << calcDistance << "mm" << endl;
+            cout << "Rx: " << Rx << "   Lx: " << Lx << "   Deg2Pwm: " << Deg2Pwm << "   Distance: " << calcDistance << "mm" << endl;
 
             Mat FrameFlpd; cv::flip(Frame,FrameFlpd,1); // Note that Left/Right are reversed now
             //Mat Gray; cv::cvtColor(Frame, Gray, cv::COLOR_BGR2GRAY);
@@ -284,8 +284,20 @@ int main(int argc, char *argv[])
             imshow("Correl L", OWL.Result);
             imshow("CorrelR", OWL.ResultR);
             waitKey(1);
-            if (waitKey(10)== 'm')//m key
+            int key = waitKey(10);
+            switch (key )
+            {
+            case 'm':// 'm' key
                 currentMode = MANUAL;
+                break;
+//            case '.':// '>' key
+//                Deg2Pwm = Deg2Pwm + 0.05;
+//                break;
+//            case ',':// '<' key
+//                Deg2Pwm = Deg2Pwm - 0.05;
+//                break;
+            }
+
 
 
             // Only for left eye at the moment

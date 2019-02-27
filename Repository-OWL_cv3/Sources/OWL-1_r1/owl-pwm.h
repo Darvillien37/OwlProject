@@ -108,7 +108,7 @@ static int LyPx2Deg = vFOV / LyRangeV;
 //160 degree of servo control
 //Place target at known distance away (1m),
 //then change this value till the result is the known value (1m)
-static float Deg2Pwm = 0.0475;
+static float Deg2Pwm = 10.58;
 
 
 static float rightRads = 0;
