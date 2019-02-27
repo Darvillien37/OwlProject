@@ -176,6 +176,8 @@ int main(int argc, char *argv[])
             Right.copyTo(RightCopy);
             rectangle( RightCopy, target, Scalar::all(255), 2, 8, 0 ); // draw white rect
             rectangle( Left, target, Scalar::all(255), 2, 8, 0 ); // draw white rect
+            circle(Left,Point(320,240),5,Scalar(0,255,0),1);
+            circle(RightCopy,Point(320,240),5,Scalar(0,255,0),1);
 
             imshow("Left",Left);
             imshow("Right", RightCopy);
@@ -242,7 +244,7 @@ int main(int argc, char *argv[])
             SendData();
 
         } // END cursor control loop
-
+        destroyAllWindows();
 
         //============= Normalised Cross Correlation ==========================
         // right is the template, just captured manually
@@ -255,7 +257,6 @@ int main(int argc, char *argv[])
             }
 
             CalculateDistance();
-
             cout << "Rx: " << Rx << "   Lx: " << Lx << "   Distance: " << calcDistance << "mm" << endl;
 
             Mat FrameFlpd; cv::flip(Frame,FrameFlpd,1); // Note that Left/Right are reversed now
@@ -276,6 +277,8 @@ int main(int argc, char *argv[])
             rectangle(Left, OWL.Match, Point( OWL.Match.x + OWLtempl.cols , OWL.Match.y + OWLtempl.rows), Scalar::all(255), 2, 8, 0 );
             rectangle(OWL.Result, OWL.Match, Point( OWL.Match.x + OWLtempl.cols , OWL.Match.y + OWLtempl.rows), Scalar::all(255), 2, 8, 0 );
             rectangle(OWL.ResultR, OWL.MatchR, Point( OWL.MatchR.x + OWLtempl.cols , OWL.MatchR.y + OWLtempl.rows), Scalar::all(255), 2, 8, 0 );
+            circle(Left,Point(320,240),5,Scalar(0,255,0),1);
+            circle(RightCopy,Point(320,240),5,Scalar(0,255,0),1);
             imshow("Owl-L", Left);
             imshow("Owl-R", RightCopy);
             imshow("Correl L", OWL.Result);
@@ -292,26 +295,26 @@ int main(int argc, char *argv[])
             double KPy=0.13; // track rate Y
 
             double LxScaleV = LxRangeV/static_cast<double>(640); //PWM range /pixel range
-            double Xoff= 420-(OWL.Match.x + OWLtempl.cols/2)/LxScaleV ; // compare to centre of image
+            double Xoff= (OWL.Match.x - 320 + OWLtempl.cols/2)/LxScaleV ; // compare to centre of image
             double LxOld=Lx;
-            Lx=static_cast<int>(LxOld-Xoff*KPx); // roughly 300 servo offset = 320 [pixel offset]
+            Lx=static_cast<int>(LxOld + Xoff*KPx); // roughly 300 servo offset = 320 [pixel offset]
 
             double LyScaleV = LyRangeV/static_cast<double>(480); //PWM range /pixel range
-            double Yoff= (240+(OWL.Match.y + OWLtempl.rows/2)/LyScaleV)*KPy ; // compare to centre of image
+            double Yoff= ((OWL.Match.y - 240 + OWLtempl.rows/2)/LyScaleV)*KPy ; // compare to centre of image
             double LyOld=Ly;
-            Ly=static_cast<int>(LyOld-Yoff); // roughly 300 servo offset = 320 [pixel offset]
+            Ly=static_cast<int>(LyOld - Yoff); // roughly 300 servo offset = 320 [pixel offset]
 
 
 
             double RxScaleV = RxRangeV/static_cast<double>(640); //PWM range /pixel range
-            double RxOff= 420 - (OWL.MatchR.x + OWLtempl.cols/2)/RxScaleV ; // compare to centre of image
+            double RxOff=  (OWL.MatchR.x - 320  + OWLtempl.cols/2)/RxScaleV ; // compare to centre of image
             double RxOld=Rx;
-            Rx=static_cast<int>(RxOld-RxOff*KPx); // roughly 300 servo offset = 320 [pixel offset]
+            Rx=static_cast<int>(RxOld + RxOff*KPx); // roughly 300 servo offset = 320 [pixel offset]
 
             double RyScaleV = RyRangeV/static_cast<double>(480); //PWM range /pixel range
-            double RyOff= (240 - (OWL.MatchR.y - OWLtempl.rows/2) / RyScaleV)*KPy ; // compare to centre of image
+            double RyOff= ((OWL.MatchR.y - 240 + OWLtempl.rows/2) / RyScaleV)*KPy ; // compare to centre of image
             double RyOld=Ry;
-            Ry=static_cast<int>(RyOld + RyOff); // roughly 300 servo offset = 320 [pixel offset]
+            Ry=static_cast<int>(RyOld - RyOff); // roughly 300 servo offset = 320 [pixel offset]
 
 
             // move to get minimise distance from centre of both images, ie verge in to targe
