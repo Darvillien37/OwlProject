@@ -39,6 +39,8 @@ static int RyC=1435;//1460;
 static int LxC=1535;//1545;
 static int LyC=1565;//560;
 static int NeckC = 1540;
+
+static int IPD = 67;//mm, interp pupelary distance
 #endif
 #ifdef OWL14
 // OWL eye ranges (max)
@@ -70,6 +72,8 @@ static int LxC=1520;//1545;
 static int LyC=1505;//560;
 static int NeckC = 1490;
 
+
+static int IPD = 65;//mm, interp pupelary distance
 #endif
 
 
@@ -90,7 +94,7 @@ static int LxRangeV=LxRv-LxLv;
 static int eyeMaxDeg = 160;
 static int eyeMinDeg = 0;
 
-static int IPD = 67;//mm, interp pupelary distance
+
 
 static int hFOV = 53; // degrees
 static int vFOV = 40; // degrees

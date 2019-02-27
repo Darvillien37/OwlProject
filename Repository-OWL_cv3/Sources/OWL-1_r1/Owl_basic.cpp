@@ -58,7 +58,7 @@ int PORT=12345;
 SOCKET u_sock;
 
 string RxPacket;
-bool trunkateOnSend = false;
+bool trunkateOnSend = true;
 
 void SendData() {
 
@@ -213,6 +213,11 @@ int main(int argc, char *argv[])
             case '.'://Neck Right '>'
                 Neck = Neck - 5;
                 break;
+
+            case 't':
+                trunkateOnSend = !trunkateOnSend;
+                cout << "Setting Trunkate on send: " << trunkateOnSend << endl;
+                break;
             case 'r':
                 Rx = RxC;
                 Lx = LxC;
@@ -256,7 +261,7 @@ int main(int argc, char *argv[])
 
             CalculateDistance();
 
-            cout << "Distance: " << calcDistance << "mm" << endl;
+            cout << "Rx: " << Rx << "   Lx: " << Lx << "   Distance: " << calcDistance << "mm" << endl;
 
             Mat FrameFlpd; cv::flip(Frame,FrameFlpd,1); // Note that Left/Right are reversed now
             //Mat Gray; cv::cvtColor(Frame, Gray, cv::COLOR_BGR2GRAY);
@@ -292,24 +297,24 @@ int main(int argc, char *argv[])
             double KPy=0.13; // track rate Y
 
             double LxScaleV = LxRangeV/static_cast<double>(640); //PWM range /pixel range
-            double Xoff= 370-(OWL.Match.x + OWLtempl.cols/2)/LxScaleV ; // compare to centre of image
+            double Xoff= 420-(OWL.Match.x + OWLtempl.cols/2)/LxScaleV ; // compare to centre of image
             double LxOld=Lx;
             Lx=static_cast<int>(LxOld-Xoff*KPx); // roughly 300 servo offset = 320 [pixel offset]
 
             double LyScaleV = LyRangeV/static_cast<double>(480); //PWM range /pixel range
-            double Yoff= (300+(OWL.Match.y + OWLtempl.rows/2)/LyScaleV)*KPy ; // compare to centre of image
+            double Yoff= (240+(OWL.Match.y + OWLtempl.rows/2)/LyScaleV)*KPy ; // compare to centre of image
             double LyOld=Ly;
             Ly=static_cast<int>(LyOld-Yoff); // roughly 300 servo offset = 320 [pixel offset]
 
 
 
             double RxScaleV = RxRangeV/static_cast<double>(640); //PWM range /pixel range
-            double RxOff= 370 - (OWL.MatchR.x + OWLtempl.cols/2)/RxScaleV ; // compare to centre of image
+            double RxOff= 420 - (OWL.MatchR.x + OWLtempl.cols/2)/RxScaleV ; // compare to centre of image
             double RxOld=Rx;
             Rx=static_cast<int>(RxOld-RxOff*KPx); // roughly 300 servo offset = 320 [pixel offset]
 
             double RyScaleV = RyRangeV/static_cast<double>(480); //PWM range /pixel range
-            double RyOff= (220 - (OWL.MatchR.y - OWLtempl.rows/2) / RyScaleV)*KPy ; // compare to centre of image
+            double RyOff= (240 - (OWL.MatchR.y - OWLtempl.rows/2) / RyScaleV)*KPy ; // compare to centre of image
             double RyOld=Ry;
             Ry=static_cast<int>(RyOld + RyOff); // roughly 300 servo offset = 320 [pixel offset]
 
