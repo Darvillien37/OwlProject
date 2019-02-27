@@ -135,29 +135,24 @@ int main(int argc, char *argv[])
     /***********************
  * LOOP continuously for testing
  */
-    // RyC=RyC-40; LyC=LyC+40; // offset for cross on card
-    Rx = RxC;
-    Lx = LxC;
-    Ry = RyC;
-    Ly = LyC;
-    Neck= NeckC;
+
     u_sock = OwlCommsInit ( PORT, PiADDR);
 
     const Mat OWLresult;// correlation result passed back from matchtemplate
     cv::Mat Frame;
     Mat Left, Right; // images
-    bool inLOOP=true; // run through cursor control first, capture a target then exit loop
+    enum MODE {MANUAL, TRACKING, EXITING};
+    MODE currentMode = MANUAL;
 
-    while (inLOOP){
 
-        // move servos to centre of field
-        CMDstream.str("");
-        CMDstream.clear();
-        CMDstream << Rx << " " << Ry << " " << Lx << " " << Ly << " " << Neck;
-        CMD = CMDstream.str();
-        cout<<"Ping\n";
-        RxPacket = OwlSendPacket (u_sock, CMD.c_str());
-        cout<<"Ping2\n";
+    while (currentMode != EXITING){
+        cout<< "Mode Updated: " << currentMode << endl;
+        Rx = RxC;
+        Lx = LxC;
+        Ry = RyC;
+        Ly = LyC;
+        Neck = NeckC;
+        SendData();
 
         VideoCapture cap (source);              // Open input
         if (!cap.isOpened())
@@ -166,7 +161,7 @@ int main(int argc, char *argv[])
             return -1;
         }
         //Rect region_of_interest = Rect(x, y, w, h);
-        while (inLOOP){
+        while (currentMode == MANUAL){
             if (!cap.read(Frame))
             {
                 cout  << "Could not open the input video: " << source << endl;
@@ -234,24 +229,24 @@ int main(int argc, char *argv[])
                 OWLtempl= Right(target);
                 //imshow("templ",OWLtempl);
                 waitKey(1);
-                inLOOP=false; // quit loop and start tracking target
+                currentMode = TRACKING; // quit loop and start tracking target
                 break; // left
+            case 27://Escape key
+                cout << "Exiting Application";
+                currentMode = EXITING;
+                break;
             default:
                 key=key;
                 //nothing at present
             }
             SendData();
-            //RxPacket= OwlSendPacket (u_sock, CMD.c_str());
 
         } // END cursor control loop
 
-        // close windows down
-        destroyAllWindows();
 
         //============= Normalised Cross Correlation ==========================
         // right is the template, just captured manually
-        inLOOP=true; // run through the loop until decided to exit
-        while (inLOOP) {
+        while (currentMode == TRACKING) {
             cout<<"Ping\n";
             if (!cap.read(Frame))
             {
@@ -286,8 +281,8 @@ int main(int argc, char *argv[])
             imshow("Correl L", OWL.Result);
             imshow("CorrelR", OWL.ResultR);
             waitKey(1);
-            if (waitKey(10)== 27)//escape key
-                inLOOP=false;
+            if (waitKey(10)== 'm')//m key
+                currentMode = MANUAL;
 
 
             // Only for left eye at the moment
@@ -323,7 +318,11 @@ int main(int argc, char *argv[])
             // move servos to position
             SendData();
 
-        } // end if ZMCC
+        } // end of tracking loop
+
+        // close windows down
+        destroyAllWindows();
+
     } // end while outer loop
 #ifdef _WIN32
     closesocket(u_sock);
