@@ -69,11 +69,11 @@ static int LxLv = 1265; // (left)
 static int RxC=1565;//1545;
 static int RyC=1525;//1460;
 static int LxC=1520;//1545;
-static int LyC=1505;//560;
+static int LyC=1505;//1560;
 static int NeckC = 1490;
 
 
-static int IPD = 65;//mm, interp pupelary distance
+static int IPD = 65;//mm, inter-pupelary distance
 #endif
 
 
@@ -106,8 +106,10 @@ static int LxPx2Deg = hFOV / LxRangeV;
 static int LyPx2Deg = vFOV / LyRangeV;
 
 //160 degree of servo control
-static float RxDeg2PWM = 10.730; //RxRangeM / eyeMaxDeg;
-static int LxDeg2PWM = LxRangeM / eyeMaxDeg;
+//Place target at known distance away (1m),
+//then change this value till the result is the known value (1m)
+static float Deg2Pwm = 0.0475;
+
 
 static float rightRads = 0;
 static float leftRads = 0;

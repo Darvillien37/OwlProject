@@ -108,6 +108,10 @@ void SendData() {
 }
 
 void CalculateDistance() {
+    //Radians for both eyes, used for distance calculations.
+    rightRads = (float(Rx-RxC)*M_PI) / (Deg2Pwm * 180);
+    leftRads = (float(Lx-LxC)*M_PI) / (Deg2Pwm * 180);
+
     //dL = distanceLeft, p1, p2, p3 = part1, part2 and part3 respectively of distance formula.
     float dL = (IPD * cos(rightRads)) / sin(rightRads + leftRads);
 
@@ -254,10 +258,6 @@ int main(int argc, char *argv[])
                 cout  << "Could not open the input video: " << source << endl;
                 break;
             }
-
-            //Radians for both eyes, used for distance calculations.
-            rightRads = (float(Rx-RxC)*M_PI) / (RxDeg2PWM * 180);
-            leftRads = (float(Lx-LxC)*M_PI) / (LxDeg2PWM * 180);
 
             CalculateDistance();
 
