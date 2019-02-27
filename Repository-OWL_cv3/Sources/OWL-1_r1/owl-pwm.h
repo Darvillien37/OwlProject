@@ -46,26 +46,29 @@ static int RyBm = 1120; // (bottom) to
 static int RyTm = 2000; //(top)
 static int RxRm = 1890; //(right) to
 static int RxLm = 1200; //(left)
+
 static int LyBm = 2000; //(bottom) to
 static int LyTm = 1180; //(top)
 static int LxRm = 1850; // (right) to
 static int LxLm = 1180; // (left)
 static int NeckR = 1100;
-static int NeckL = 1940;
+static int NeckL = 1950;
 // VGA match ranges
-static int RyBv = 1220; // (bottom) to
-static int RyTv = 1600; //(top)
-static int RxRv = 1775; //(right) to
-static int RxLv = 1250; //(left)
-static int LyBv = 1800; //(bottom) to
-static int LyTv = 1365; //(top)
-static int LxRv = 1795; // (right) to
-static int LxLv = 1260; // (left)
-static int RxC=1525;//1545;
-static int RyC=1435;//1460;
-static int LxC=1535;//1545;
-static int LyC=1565;//560;
-static int NeckC = 1540;
+static int RyBv = 1310; // (bottom) to
+static int RyTv = 1710; //(top)
+static int RxRv = 1850; //(right) to
+static int RxLv = 1285; //(left)
+
+static int LyBv = 1665; //(bottom) to
+static int LyTv = 1290; //(top)
+static int LxRv = 1780; // (right) to
+static int LxLv = 1265; // (left)
+
+static int RxC=1565;//1545;
+static int RyC=1525;//1460;
+static int LxC=1520;//1545;
+static int LyC=1505;//560;
+static int NeckC = 1490;
 
 #endif
 

@@ -58,40 +58,43 @@ int PORT=12345;
 SOCKET u_sock;
 
 string RxPacket;
+bool trunkateOnSend = false;
 
 void SendData() {
-    //Check if
-    if (Rx < RxLm) {
-        Rx = RxLm;
-    }
-    if (Rx > RxRm) {
-        Rx = RxRm;
-    }
-    if (Ry < RyBm) {
-        Ry = RyBm;
-    }
-    if (Ry > RyTm) {
-        Ry = RyTm;
-    }
-    if (Lx < LxLm) {
-        Lx = LxLm;
-    }
-    if (Lx > LxRm) {
-        Lx = LxRm;
-    }
-    if (Ly > LyBm) {
-        Ly = LyBm;
-    }
-    if (Ly < LyTm) {
-        Ly = LyTm;
-    }
-    if (Neck > NeckL) {
-        Neck = NeckL;
-    }
-    if (Neck < NeckR) {
-        Neck = NeckR;
-    }
 
+    if(trunkateOnSend){
+        //Check if
+        if (Rx < RxLm) {
+            Rx = RxLm;
+        }
+        if (Rx > RxRm) {
+            Rx = RxRm;
+        }
+        if (Ry < RyBm) {
+            Ry = RyBm;
+        }
+        if (Ry > RyTm) {
+            Ry = RyTm;
+        }
+        if (Lx < LxLm) {
+            Lx = LxLm;
+        }
+        if (Lx > LxRm) {
+            Lx = LxRm;
+        }
+        if (Ly > LyBm) {
+            Ly = LyBm;
+        }
+        if (Ly < LyTm) {
+            Ly = LyTm;
+        }
+        if (Neck > NeckL) {
+            Neck = NeckL;
+        }
+        if (Neck < NeckR) {
+            Neck = NeckR;
+        }
+    }
 
     CMDstream.str("");
     CMDstream.clear();
