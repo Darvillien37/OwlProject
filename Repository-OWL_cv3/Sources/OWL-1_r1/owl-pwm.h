@@ -7,13 +7,13 @@
 #endif // OWLPWM_HPP
 
 
+#define OWL14
 
 
 // Defines for servo limits
 // PFC Owl robot
 // (c) Plymouth University
-
-//Owl 5 setup
+#ifdef OWL5
 // OWL eye ranges (max)
 static int RyBm = 1120; // (bottom) to
 static int RyTm = 2000; //(top)
@@ -39,6 +39,38 @@ static int RyC=1435;//1460;
 static int LxC=1535;//1545;
 static int LyC=1565;//560;
 static int NeckC = 1540;
+#endif
+#ifdef OWL14
+// OWL eye ranges (max)
+static int RyBm = 1120; // (bottom) to
+static int RyTm = 2000; //(top)
+static int RxRm = 1890; //(right) to
+static int RxLm = 1200; //(left)
+static int LyBm = 2000; //(bottom) to
+static int LyTm = 1180; //(top)
+static int LxRm = 1850; // (right) to
+static int LxLm = 1180; // (left)
+static int NeckR = 1100;
+static int NeckL = 1940;
+// VGA match ranges
+static int RyBv = 1220; // (bottom) to
+static int RyTv = 1600; //(top)
+static int RxRv = 1775; //(right) to
+static int RxLv = 1250; //(left)
+static int LyBv = 1800; //(bottom) to
+static int LyTv = 1365; //(top)
+static int LxRv = 1795; // (right) to
+static int LxLv = 1260; // (left)
+static int RxC=1525;//1545;
+static int RyC=1435;//1460;
+static int LxC=1535;//1545;
+static int LyC=1565;//560;
+static int NeckC = 1540;
+
+#endif
+
+
+
 static int Ry,Rx,Ly,Lx,Neck; // calculate values for position
 //MAX servo eye socket ranges
 static int RyRangeM=RyTm-RyBm;
