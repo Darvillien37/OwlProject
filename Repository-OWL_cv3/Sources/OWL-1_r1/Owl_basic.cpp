@@ -1,32 +1,3 @@
-// owl.cpp : Defines the entry point for the console application.
-/* Phil Culverhouse Oct 2016 (c) Plymouth UNiversity
- *
- * Uses IP sockets to communicate to the owl robot (see owl-comms.h)
- * Uses OpenCV to perform normalised cross correlation to find a match to a template
- * (see owl-cv.h).
- * PWM definitions for the owl servos are held in owl-pwm.h
- * includes bounds check definitions
- * requires setting for specific robot
- *
- * This demosntration programs does the following:
- * a) loop 1 - take picture, check arrow keys
- *             move servos +5 pwm units for each loop
- *             draw 64x64 pixel square overlaid on Right image
- *             if 'c' is pressed copy patch into a template for matching with left
- *              exit loop 1;
- * b) loop 2 - perform Normalised Cross Correlation between template and left image
- *             move Left eye to centre on best match with template
- *             (treats Right eye are dominate in this example).
- *             loop
- *             on exit by ESC key
- *                  go back to loop 1
- *
- * First start communcations on Pi by running 'python PFCpacket.py'
- * Then run this program. The Pi server prints out [Rx Ry Lx Ly] pwm values and loops
- *
- * NOTE: this program is just a demonstrator, the right eye does not track, just the left.
- */
-
 #include <iostream>
 #include <fstream>
 
@@ -182,9 +153,6 @@ int main(int argc, char *argv[])
             rectangle( Left, target, Scalar::all(255), 2, 8, 0 ); // draw white rect
             circle(Left,Point(320,240),5,Scalar(0,255,0),1);
             circle(RightCopy,Point(320,240),5,Scalar(0,255,0),1);
-            //Write text to the right window.
-            putText(RightCopy, "Hello", cvPoint(10,300), FONT_HERSHEY_COMPLEX_SMALL, 10, Scalar::all(255), 1, 8, false);
-
             imshow("Left",Left);
             imshow("Right", RightCopy);
             waitKey(1);
@@ -254,7 +222,7 @@ int main(int argc, char *argv[])
 
         //============= Normalised Cross Correlation ==========================
         // right is the template, just captured manually
-        while (currentMode == TRACKING) {            
+        while (currentMode == TRACKING) {
             if (!cap.read(Frame))
             {
                 cout  << "Could not open the input video: " << source << endl;
@@ -282,10 +250,7 @@ int main(int argc, char *argv[])
             rectangle(OWL.ResultR, OWL.MatchR, Point( OWL.MatchR.x + OWLtempl.cols , OWL.MatchR.y + OWLtempl.rows), Scalar::all(255), 2, 8, 0 );
             circle(Left,Point(320,240),5,Scalar(0,255,0),1);
             circle(RightCopy,Point(320,240),5,Scalar(0,255,0),1);
-            imshow("Owl-L", Left);
-            imshow("Owl-R", RightCopy);
-            imshow("Correl L", OWL.Result);
-            imshow("CorrelR", OWL.ResultR);
+
             waitKey(1);
             int key = waitKey(10);
             switch (key )
@@ -293,12 +258,12 @@ int main(int argc, char *argv[])
             case 'm':// 'm' key
                 currentMode = MANUAL;
                 break;
-//            case '.':// '>' key
-//                Deg2Pwm = Deg2Pwm + 0.05;
-//                break;
-//            case ',':// '<' key
-//                Deg2Pwm = Deg2Pwm - 0.05;
-//                break;
+                //            case '.':// '>' key
+                //                Deg2Pwm = Deg2Pwm + 0.05;
+                //                break;
+                //            case ',':// '<' key
+                //                Deg2Pwm = Deg2Pwm - 0.05;
+                //                break;
             }
 
 
@@ -331,7 +296,14 @@ int main(int argc, char *argv[])
             double RyOld=Ry;
             Ry=static_cast<int>(RyOld - RyOff); // roughly 300 servo offset = 320 [pixel offset]
 
-            if(Rx > RxC)//Looking to the right
+            //Create the string
+            string distanceString = "Distance: " + to_string((int)calcDistance) + "mm";
+            //Draw rectangle for text.
+            rectangle( RightCopy, textBox, Scalar::all(0), -1, 8, 0);
+            if (Lx < LxC && Rx > RxC) { //If eyes diverge
+                distanceString = "Divergent Target lost!";
+            }
+            else if(Rx > RxC)//Looking to the right
             {
                 Neck = Neck - 5;
             }
@@ -339,12 +311,15 @@ int main(int argc, char *argv[])
             {
                 Neck = Neck + 5;
             }
+            putText(RightCopy, distanceString, cvPoint(165, 465), FONT_HERSHEY_DUPLEX, 1, Scalar::all(255), 0, 0, false);
 
             CalculateDistance();
             cout << "Rx: " << Rx << "   Lx: " << Lx << "   Deg2Pwm: " << Deg2Pwm << "   Distance: " << calcDistance << "mm" << endl;
 
-//          Fix this \/
-//          cvPutText(RightCopy,'OpenCV',(10,500), FONT_HERSHEY_SIMPLEX, (255,255,255));
+            imshow("Owl-L", Left);
+            imshow("Owl-R", RightCopy);
+            imshow("Correl L", OWL.Result);
+            imshow("CorrelR", OWL.ResultR);
 
             // move to get minimise distance from centre of both images, ie verge in to targe
             // move servos to position
