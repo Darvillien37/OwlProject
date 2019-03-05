@@ -183,7 +183,7 @@ int main(int argc, char *argv[])
             circle(Left,Point(320,240),5,Scalar(0,255,0),1);
             circle(RightCopy,Point(320,240),5,Scalar(0,255,0),1);
             //Write text to the right window.
-            putText(RightCopy, "Hello", cvPoint(10,300), FONT_HERSHEY_COMPLEX_SMALL, 10, Scalar::all(255), 1, 8, false);
+            putText(RightCopy, "Hello", cvPoint(10,300), FONT_HERSHEY_COMPLEX_SMALL, 10, cvScalar(200,200,250), 1, 8, false);
 
             imshow("Left",Left);
             imshow("Right", RightCopy);
