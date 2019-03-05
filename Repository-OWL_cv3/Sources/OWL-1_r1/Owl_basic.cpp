@@ -30,6 +30,7 @@
 #include <iostream>
 #include <fstream>
 
+
 #include <sys/types.h>
 #ifndef _WIN32
 #include <unistd.h>
@@ -256,8 +257,6 @@ int main(int argc, char *argv[])
                 break;
             }
 
-            CalculateDistance();
-            cout << "Rx: " << Rx << "   Lx: " << Lx << "   Deg2Pwm: " << Deg2Pwm << "   Distance: " << calcDistance << "mm" << endl;
 
             Mat FrameFlpd; cv::flip(Frame,FrameFlpd,1); // Note that Left/Right are reversed now
             //Mat Gray; cv::cvtColor(Frame, Gray, cv::COLOR_BGR2GRAY);
@@ -328,6 +327,11 @@ int main(int argc, char *argv[])
             double RyOld=Ry;
             Ry=static_cast<int>(RyOld - RyOff); // roughly 300 servo offset = 320 [pixel offset]
 
+            CalculateDistance();
+            cout << "Rx: " << Rx << "   Lx: " << Lx << "   Deg2Pwm: " << Deg2Pwm << "   Distance: " << calcDistance << "mm" << endl;
+
+//          Fix this \/
+//          cvPutText(RightCopy,'OpenCV',(10,500), FONT_HERSHEY_SIMPLEX, (255,255,255));
 
             // move to get minimise distance from centre of both images, ie verge in to targe
             // move servos to position

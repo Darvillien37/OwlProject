@@ -7,7 +7,7 @@
 #endif // OWLPWM_HPP
 
 
-#define OWL14
+#define OWL5
 
 
 // Defines for servo limits
@@ -34,10 +34,10 @@ static int LyBv = 1800; //(bottom) to
 static int LyTv = 1365; //(top)
 static int LxRv = 1795; // (right) to
 static int LxLv = 1260; // (left)
-static int RxC=1525;//1545;
-static int RyC=1435;//1460;
-static int LxC=1535;//1545;
-static int LyC=1565;//560;
+static int RxC=1520;//1545;
+static int RyC=1450;//1460;
+static int LxC=1540;//1545;
+static int LyC=1550;//560;
 static int NeckC = 1540;
 
 static int IPD = 67;//mm, interp pupelary distance
