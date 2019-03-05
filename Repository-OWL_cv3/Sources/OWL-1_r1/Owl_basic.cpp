@@ -182,9 +182,6 @@ int main(int argc, char *argv[])
             rectangle( Left, target, Scalar::all(255), 2, 8, 0 ); // draw white rect
             circle(Left,Point(320,240),5,Scalar(0,255,0),1);
             circle(RightCopy,Point(320,240),5,Scalar(0,255,0),1);
-            //Write text to the right window.
-            putText(RightCopy, "Hello", cvPoint(10,300), FONT_HERSHEY_COMPLEX_SMALL, 10, cvScalar(200,200,250), 1, 8, false);
-
             imshow("Left",Left);
             imshow("Right", RightCopy);
             waitKey(1);
@@ -282,6 +279,11 @@ int main(int argc, char *argv[])
             rectangle(OWL.ResultR, OWL.MatchR, Point( OWL.MatchR.x + OWLtempl.cols , OWL.MatchR.y + OWLtempl.rows), Scalar::all(255), 2, 8, 0 );
             circle(Left,Point(320,240),5,Scalar(0,255,0),1);
             circle(RightCopy,Point(320,240),5,Scalar(0,255,0),1);
+            //Create the string
+            string distanceString = "Distance: " + to_string((int)calcDistance) + "mm";
+            //Write text to the right window.
+            rectangle( RightCopy, textBox, Scalar::all(0), -1, 8, 0);
+            putText(RightCopy, distanceString, cvPoint(165, 465), FONT_HERSHEY_DUPLEX, 1, Scalar::all(255), 0, 0, false);
             imshow("Owl-L", Left);
             imshow("Owl-R", RightCopy);
             imshow("Correl L", OWL.Result);
