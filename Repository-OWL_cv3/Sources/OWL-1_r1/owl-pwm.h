@@ -15,32 +15,35 @@
 // (c) Plymouth University
 #ifdef OWL5
 // OWL eye ranges (max)
-static int RyBm = 1120; // (bottom) to
-static int RyTm = 2000; //(top)
-static int RxRm = 1890; //(right) to
-static int RxLm = 1200; //(left)
-static int LyBm = 2000; //(bottom) to
-static int LyTm = 1180; //(top)
-static int LxRm = 1850; // (right) to
-static int LxLm = 1180; // (left)
-static int NeckR = 1100;
-static int NeckL = 1940;
+static const int RyBm = 1120; // (bottom) to
+static const int RyTm = 2000; //(top)
+static const int RxRm = 1890; //(right) to
+static const int RxLm = 1200; //(left)
+static const int LyBm = 2000; //(bottom) to
+static const int LyTm = 1180; //(top)
+static const int LxRm = 1850; // (right) to
+static const int LxLm = 1180; // (left)
+static const int NeckR = 1100;
+static const int NeckL = 1940;
 // VGA match ranges
-static int RyBv = 1220; // (bottom) to
-static int RyTv = 1600; //(top)
-static int RxRv = 1775; //(right) to
-static int RxLv = 1250; //(left)
-static int LyBv = 1800; //(bottom) to
-static int LyTv = 1365; //(top)
-static int LxRv = 1795; // (right) to
-static int LxLv = 1260; // (left)
-static int RxC=1520;//1545;
-static int RyC=1450;//1460;
-static int LxC=1540;//1545;
-static int LyC=1550;//560;
-static int NeckC = 1540;
+static const int RyBv = 1220; // (bottom) to
+static const int RyTv = 1600; //(top)
+static const int RxRv = 1775; //(right) to
+static const int RxLv = 1250; //(left)
+static const int LyBv = 1800; //(bottom) to
+static const int LyTv = 1365; //(top)
+static const int LxRv = 1795; // (right) to
+static const int LxLv = 1260; // (left)
+static const int RxC=1520;//1545;
+static const int RyC=1450;//1460;
+static const int LxC=1540;//1545;
+static const int LyC=1550;//560;
+static const int NeckC = 1540;
 
-static int IPD = 67;//mm, interp pupelary distance
+static const int IPD = 67;//mm, interp pupelary distance
+//Place target at known distance away (1m),
+//then change this value till the result is the known value (1m)
+static float Deg2Pwm = 10.23;
 #endif
 #ifdef OWL14
 // OWL eye ranges (max)
@@ -74,6 +77,9 @@ static int NeckC = 1490;
 
 
 static int IPD = 65;//mm, inter-pupelary distance
+//Place target at known distance away (1m),
+//then change this value till the result is the known value (1m)
+static float Deg2Pwm = 10.58;
 #endif
 
 
@@ -106,9 +112,7 @@ static int LxPx2Deg = hFOV / LxRangeV;
 static int LyPx2Deg = vFOV / LyRangeV;
 
 //160 degree of servo control
-//Place target at known distance away (1m),
-//then change this value till the result is the known value (1m)
-static float Deg2Pwm = 10.58;
+
 
 
 static float rightRads = 0;
