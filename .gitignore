@@ -35,6 +35,9 @@ target_wrapper.*
 # QtCreator
 *.autosave
 
+# Excell hidden file when file is open
+~$*.xlsx
+
 # QtCreator Qml
 *.qmlproject.user
 *.qmlproject.user.*
