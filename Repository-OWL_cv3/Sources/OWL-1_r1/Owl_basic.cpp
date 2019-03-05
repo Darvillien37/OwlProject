@@ -47,6 +47,7 @@
 using namespace std;
 using namespace cv;
 
+//Hello World!!
 //Moved to global variables.
 ostringstream CMDstream; // string packet
 string CMD;
