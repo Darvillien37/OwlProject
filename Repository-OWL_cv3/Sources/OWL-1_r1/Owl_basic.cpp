@@ -110,11 +110,8 @@ void SendData() {
 
 void CalculateDistance() {
     //Radians for both eyes, used for distance calculations.
-    //Right eye is flipped
-    rightRads = (float(RxC - Rx)*M_PI) / (Deg2Pwm * 180);
-    leftRads = (float(Lx - LxC)*M_PI) / (Deg2Pwm * 180);
-    //cout << rightRads * 180 / M_PI << "\t";
-    //cout << leftRads * 180 / M_PI << endl;
+    rightRads = (float(Rx-RxC)*M_PI) / (Deg2Pwm * 180);
+    leftRads = (float(Lx-LxC)*M_PI) / (Deg2Pwm * 180);
 
     //dL = distanceLeft, p1, p2, p3 = part1, part2 and part3 respectively of distance formula.
     float dL = (IPD * cos(rightRads)) / sin(rightRads + leftRads);
@@ -252,7 +249,8 @@ int main(int argc, char *argv[])
 
         //============= Normalised Cross Correlation ==========================
         // right is the template, just captured manually
-        while (currentMode == TRACKING) {            
+        while (currentMode == TRACKING) {
+            cout<<"Ping\n";
             if (!cap.read(Frame))
             {
                 cout  << "Could not open the input video: " << source << endl;
@@ -328,15 +326,6 @@ int main(int argc, char *argv[])
             double RyOff= ((OWL.MatchR.y - 240 + OWLtempl.rows/2) / RyScaleV)*KPy ; // compare to centre of image
             double RyOld=Ry;
             Ry=static_cast<int>(RyOld - RyOff); // roughly 300 servo offset = 320 [pixel offset]
-
-            if(Rx > RxC)//Looking to the right
-            {
-                Neck = Neck - 5;
-            }
-            else if (Lx < LxC) // looking left
-            {
-                Neck = Neck + 5;
-            }
 
             CalculateDistance();
             cout << "Rx: " << Rx << "   Lx: " << Lx << "   Deg2Pwm: " << Deg2Pwm << "   Distance: " << calcDistance << "mm" << endl;
