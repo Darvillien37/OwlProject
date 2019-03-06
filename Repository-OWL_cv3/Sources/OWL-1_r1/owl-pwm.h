@@ -44,7 +44,7 @@ static const int NeckC = 1540;
 static const int IPD = 67;//mm, interp pupelary distance
 //Place target at known distance away (1m),
 //then change this value till the result is the known value (1m)
-static float Deg2Pwm = 10.23;
+static float Deg2Pwm = 10.98;
 #endif
 #ifdef OWL14
 // OWL eye ranges (max)
@@ -101,21 +101,7 @@ static int LxRangeV=LxRv-LxLv;
 static int eyeMaxDeg = 160;
 static int eyeMinDeg = 0;
 
-
-
-static int hFOV = 53; // degrees
-static int vFOV = 40; // degrees
-static int dFOV = 66; // degrees
-
-static int RxPx2Deg = hFOV / RxRangeV;
-static int RyPx2Deg = vFOV / RyRangeV;
-static int LxPx2Deg = hFOV / LxRangeV;
-static int LyPx2Deg = vFOV / LyRangeV;
-
-//160 degree of servo control
-
-
-
+//Used for calculating distance
 static float rightRads = 0;
 static float leftRads = 0;
 
