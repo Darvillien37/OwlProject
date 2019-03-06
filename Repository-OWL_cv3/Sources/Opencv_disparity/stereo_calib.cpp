@@ -145,6 +145,10 @@ static void StereoCalib(const vector<string>& imagelist, Size boardSize, float s
         }
     }
     cout << j << " pairs have been successfully detected.\n";
+    for (int imageIndex = 0; imageIndex < goodImageList.size(); imageIndex++)
+    {
+        cout << goodImageList[imageIndex] << endl;
+    }
     nimages = j;
     if( nimages < 2 )
     {
