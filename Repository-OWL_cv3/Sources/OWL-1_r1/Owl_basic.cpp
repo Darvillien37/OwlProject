@@ -94,7 +94,10 @@ void CalculateDistance() {
     float p2 = pow(IPD, 2) / 4;
     float p3 = (dL * IPD * sin(leftRads));
 
-    calcDistance = sqrt((p1 + p2) - p3);
+    //From the scatter graph
+    //y = 0.9926x - 13.624
+
+    calcDistance = (0.9926 * (sqrt((p1 + p2) - p3))) - 13.624;
 
 }
 
