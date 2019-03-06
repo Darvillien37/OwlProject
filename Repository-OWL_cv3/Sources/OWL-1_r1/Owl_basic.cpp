@@ -156,8 +156,6 @@ int main(int argc, char *argv[])
             Right.copyTo(RightCopy);
             rectangle( RightCopy, target, Scalar::all(255), 2, 8, 0 ); // draw white rect
             rectangle( Left, target, Scalar::all(255), 2, 8, 0 ); // draw white rect
-            circle(Left,Point(320,240),5,Scalar(0,255,0),1);
-            circle(RightCopy,Point(320,240),5,Scalar(0,255,0),1);
             imshow("Left",Left);
             imshow("Right", RightCopy);
             waitKey(1);
