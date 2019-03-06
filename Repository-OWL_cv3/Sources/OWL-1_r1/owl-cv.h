@@ -84,10 +84,15 @@ struct OwlCorrel Owl_matchTemplate(Mat Right, Mat Left, Mat templ, Rect target){
 }
 
 int OwlCalCapture(cv::VideoCapture &cap, string Folder){
-
     int count=20;
     cv::Mat Frame;
+    cout << "Please press {spacebar} to capture an image... " << endl;
     for (int i=0;i<count;i++){
+        //Wait for the {space bar} key to be pressed before taking an image
+        while(cv::waitKey(0) != 32){ //Key code for {space bar}
+            cout << "Please press {spacebar} to capture an image... " << endl;
+        }
+
         if (!cap.read(Frame))
         {
             return(-1);
@@ -102,7 +107,6 @@ int OwlCalCapture(cv::VideoCapture &cap, string Folder){
         cv::imwrite(fnameL, Left);
         cv::imwrite(fnameR, Right);
         cout << "Saved " << i << " stereo pair" << Folder <<endl;
-        cv::waitKey(0);
     }
     cout << "Just saved 10 stereo pairs" << Folder <<endl;
     return(0);

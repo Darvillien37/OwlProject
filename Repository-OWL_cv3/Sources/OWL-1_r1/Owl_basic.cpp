@@ -32,6 +32,8 @@ SOCKET u_sock;
 string RxPacket;
 bool trunkateOnSend = true;
 
+string const IMAGES_FOLDER = "../../Data/OurImages/";
+
 void SendData() {
 
     if(trunkateOnSend){
@@ -119,7 +121,7 @@ int main(int argc, char *argv[])
     const Mat OWLresult;// correlation result passed back from matchtemplate
     cv::Mat Frame;
     Mat Left, Right; // images
-    enum MODE {MANUAL, TRACKING, EXITING};
+    enum MODE {MANUAL, TRACKING, CAPTURING, EXITING};
     MODE currentMode = MANUAL;
 
 
@@ -191,25 +193,32 @@ int main(int argc, char *argv[])
             case '.'://Neck Right '>'
                 Neck = Neck - 5;
                 break;
-
-            case 't':
-                trunkateOnSend = !trunkateOnSend;
-                cout << "Setting Trunkate on send: " << trunkateOnSend << endl;
-                break;
             case 'r':
                 Rx = RxC;
                 Lx = LxC;
                 Ry = RyC;
                 Ly = LyC;
                 Neck= NeckC;
-
                 break;
-            case 'c': // lowercase 'c'
+
+            case 'b':
+                trunkateOnSend = !trunkateOnSend;
+                cout << "Setting Trunkate on send: " << (trunkateOnSend ? "True" : "False") << endl;
+                break;
+
+
+            case 't': // lowercase 't'
                 OWLtempl= Right(target);
                 //imshow("templ",OWLtempl);
                 waitKey(1);
                 currentMode = TRACKING; // quit loop and start tracking target
                 break; // left
+
+            case 'c'://Start capturing the images
+                cout << "capturing images..." << endl;
+                OwlCalCapture(cap, IMAGES_FOLDER);
+                break;
+
             case 27://Escape key
                 cout << "Exiting Application";
                 currentMode = EXITING;
