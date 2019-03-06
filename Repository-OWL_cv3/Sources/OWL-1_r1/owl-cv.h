@@ -84,15 +84,13 @@ struct OwlCorrel Owl_matchTemplate(Mat Right, Mat Left, Mat templ, Rect target){
 }
 
 int OwlCalCapture(cv::VideoCapture &cap, string Folder){
-    int count=20;
+    int const MAX_IMAGES = 20;
+    int imageCount = 0;
     cv::Mat Frame;
     cout << "Please press {spacebar} to capture an image... " << endl;
-    for (int i=0;i<count;i++){
-        //Wait for the {space bar} key to be pressed before taking an image
-        while(cv::waitKey(0) != 32){ //Key code for {space bar}
-            cout << "Please press {spacebar} to capture an image... " << endl;
-        }
-
+    int key = 0;
+    while(imageCount < MAX_IMAGES)
+    {
         if (!cap.read(Frame))
         {
             return(-1);
@@ -100,14 +98,25 @@ int OwlCalCapture(cv::VideoCapture &cap, string Folder){
         //Mat FrameFlpd; cv::flip(Frame,FrameFlpd,1); // Note that Left/Right are reversed now
         //Mat Gray; cv::cvtColor(Frame, Gray, cv::COLOR_BGR2GRAY);
         // Split into LEFT and RIGHT images from the stereo pair sent as one MJPEG iamge
-        cv::Mat Right= Frame( Rect(0, 0, 640, 480)); // using a rectangle
-        cv::Mat Left=  Frame( Rect(640, 0, 640, 480)); // using a rectanglecv::imwrite(Folder + "left" + count + "jpg", Left);
-        string fnameR(Folder + "right" + to_string(i) + ".jpg");
-        string fnameL=(Folder + "left" +  to_string(i) + ".jpg");
-        cv::imwrite(fnameL, Left);
-        cv::imwrite(fnameR, Right);
-        cout << "Saved " << i << " stereo pair" << Folder <<endl;
+        cv::Mat Right = Frame( Rect(0, 0, 640, 480)); // using a rectangle
+        cv::Mat Left = Frame( Rect(640, 0, 640, 480)); // using a rectanglecv::imwrite(Folder + "left" + count + "jpg", Left);
+        imshow("Left",Left);
+        imshow("Right",Right);
+        key = waitKey(10);
+        if(key == 32)
+        {
+            string fnameR(Folder + "right" + to_string(imageCount) + ".jpg");
+            string fnameL=(Folder + "left" +  to_string(imageCount) + ".jpg");
+            cv::imwrite(fnameL, Left);
+            cv::imwrite(fnameR, Right);
+            cout << "Saved " << imageCount << " stereo pair" << Folder <<endl;
+            imageCount++;
+        }
+
+
     }
+
+    destroyAllWindows();
     cout << "Just saved 10 stereo pairs" << Folder <<endl;
     return(0);
 }
