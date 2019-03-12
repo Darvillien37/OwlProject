@@ -213,8 +213,13 @@ int main(int argc, char *argv[])
                 break; // left
 
             case 'c'://Start capturing the images
+                Rx = RxDisparityToeIn;
+                Lx = LxDisparityToeIn;
+                SendData();
                 cout << "capturing images..." << endl;
                 OwlCalCapture(cap, IMAGES_FOLDER);
+                Rx = RxC;
+                Lx = LxC;
                 break;
 
             case 27://Escape key
