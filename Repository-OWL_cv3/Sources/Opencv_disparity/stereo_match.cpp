@@ -296,12 +296,15 @@ int main(int argc, char** argv)
             else
                 disp.convertTo(disp8, CV_8U);
             if( true )
-            {
+            {   //Flipping all of the frames on the x axis before displaying.
                 //namedWindow("left", 1);
+                flip(Left,Left,-1);
                 imshow("left", Left);
                 //namedWindow("right", 1);
+                flip(Right,Right,-1);
                 imshow("right", Right);
                 //namedWindow("disparity", 0);
+                flip(disp8,disp8,-1);
                 imshow("disparity", disp8);
                 //printf("press any key to continue...");
                 //fflush(stdout);
