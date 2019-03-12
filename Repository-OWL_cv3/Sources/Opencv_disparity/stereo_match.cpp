@@ -95,6 +95,10 @@ int main(int argc, char** argv)
     bool no_display;
     float scale;
 
+    int colourSum = 0;
+
+    Rect target = Rect(320-16, 240-16, 32, 32);
+
     Ptr<StereoBM> bm = StereoBM::create(16,9);
     Ptr<StereoSGBM> sgbm = StereoSGBM::create(0,16,3);
     cv::CommandLineParser parser(argc, argv,
@@ -115,8 +119,11 @@ int main(int argc, char** argv)
          _alg == "var" ? STEREO_VAR :
          _alg == "sgbm3way" ? STEREO_3WAY : -1;
     }
-    numberOfDisparities = parser.get<int>("max-disparity");
-    SADWindowSize = parser.get<int>("blocksize");
+    //N-disparities referenced in the lecture.
+    //numberOfDisparities = parser.get<int>("max-disparity"); // = 256.
+    numberOfDisparities = 256; //256 is default.
+    //SADWindowSize = parser.get<int>("blocksize"); // = 3.
+    SADWindowSize = 3; //3 is default.
     scale = parser.get<float>("scale");
     no_display = parser.has("no-display");
     if( parser.has("i") )
@@ -252,6 +259,8 @@ int main(int argc, char** argv)
         cv::Mat Frame,Left,Right;
         cv::Mat disp, disp8;
 
+        Mat targetArray;
+        Scalar targetColour;
 
         while (inLOOP){
             if (!cap.read(Frame))
@@ -325,10 +334,29 @@ int main(int argc, char** argv)
             printf("Time elapsed: %fms\n", t*1000/getTickFrequency());
 
             //disp = dispp.colRange(numberOfDisparities, Leftp.cols);
-            if( alg != STEREO_VAR )
+            if( alg != STEREO_VAR ) {
                 disp.convertTo(disp8, CV_8U, 255/(numberOfDisparities*16.));
-            else
+            } else {
                 disp.convertTo(disp8, CV_8U);
+            }
+
+            //Grab target here.
+            //image.at<char>(x,y);
+            targetArray = disp8(target);
+            //Loop through entire target.
+            for (int i = 0; i < 32; i++) {
+                for (int j = 0; j < 32; j++) {
+                    targetColour = targetArray.at<uchar>(Point(i, j));
+                    colourSum += targetColour[0];
+                }
+            }
+            //Need to divide sum by amount of values to get average.
+            colourSum = colourSum / (32*32);
+            cout << "Average value = " << colourSum << endl;
+            //Reset colour sum after use.
+            colourSum = 0;
+            imshow("targetPreview", targetArray);
+
             if( true )
             {   //Flipping all of the frames on the x axis before displaying.
                 //namedWindow("left", 1);
@@ -339,6 +367,8 @@ int main(int argc, char** argv)
                 imshow("right", Right);
                 //namedWindow("disparity", 0);
                 flip(disp8,disp8,-1);
+                //Show target on right eye
+                rectangle(disp8, target, Scalar(0, 0, 255), 1, 8, 0);
                 imshow("disparity", disp8);
                 //printf("press any key to continue...");
                 //fflush(stdout);
