@@ -9,7 +9,7 @@
 
 #include <iostream>
 #include <fstream>
-
+#include "owl-comms.h"
 
 #include "opencv2/calib3d/calib3d.hpp"
 #include "opencv2/imgproc.hpp"
@@ -18,9 +18,42 @@
 #include "opencv2/core/utility.hpp"
 
 #include <stdio.h>
+#include <winsock2.h>
 
 using namespace cv;
 using namespace std;
+
+//Moved to global variables.
+ostringstream CMDstream; // string packet
+string CMD;
+
+string source ="http://10.0.0.10:8080/stream/video.mjpeg"; // was argv[1];           // the source file name
+string PiADDR = "10.0.0.10";
+
+//SETUP TCP COMMS
+int PORT=12345;
+SOCKET u_sock;
+
+void ConnectAndSend() {
+    u_sock = OwlCommsInit ( PORT, PiADDR);
+
+    const int Rx=1520 - 20;
+    const int Ry=1450;
+    const int Lx=1540 + 20;
+    const int Ly=1550;
+    const int Neck = 1540;
+
+    CMDstream.str("");
+    CMDstream.clear();
+    CMDstream << Rx << " " << Ry << " " << Lx << " " << Ly << " " << Neck;
+    cout << Rx << " " << Ry << " " << Lx << " " << Ly << " " << Neck << endl;
+    CMD = CMDstream.str();
+#ifdef _WIN32
+    OwlSendPacket (u_sock, CMD.c_str());
+#else
+    OwlSendPacket (clientSock, CMD.c_str());
+#endif
+}
 
 static void print_help()
 {
@@ -48,6 +81,7 @@ static void saveXYZ(const char* filename, const Mat& mat)
 
 int main(int argc, char** argv)
 {
+    ConnectAndSend();
     std::string Left_filename = "";
     std::string Right_filename = "";
     std::string intrinsic_filename = "../../Data/intrinsics.xml";
@@ -327,6 +361,10 @@ int main(int argc, char** argv)
             printf("\n");
         }
     } // end got intrinsics IF
-
+#ifdef _WIN32
+    closesocket(u_sock);
+#else
+    close(clientSock);
+#endif
     return 0;
 }
