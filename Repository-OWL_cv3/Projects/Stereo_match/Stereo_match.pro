@@ -31,3 +31,5 @@ LIBS += -lopencv_core \
 
 SOURCES += \
     ../../Sources/Opencv_disparity/stereo_match.cpp
+HEADERS += \
+    ../../Sources/Opencv_disparity/owl-comms.h
