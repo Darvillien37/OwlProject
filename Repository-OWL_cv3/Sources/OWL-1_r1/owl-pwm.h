@@ -45,6 +45,11 @@ static const int IPD = 67;//mm, interp pupelary distance
 //Place target at known distance away (1m),
 //then change this value till the result is the known value (1m)
 static float Deg2Pwm = 10.98;
+
+static int RxDisparityToeIn = RxC - 20;
+static int LxDisparityToeIn = LxC + 20;
+
+
 #endif
 #ifdef OWL14
 // OWL eye ranges (max)
