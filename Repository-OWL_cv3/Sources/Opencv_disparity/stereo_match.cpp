@@ -1,14 +1,6 @@
-/*
- *  stereo_match.cpp
- *  calibration
- *
- *  Created by Victor  Eruhimov on 1/18/10.
- *  Copyright 2010 Argus Corp. All rights reserved.
- *
- */
-
 #include <iostream>
 #include <fstream>
+
 #include "owl-comms.h"
 
 #include "opencv2/calib3d/calib3d.hpp"
@@ -26,7 +18,8 @@ using namespace std;
 ostringstream CMDstream; // string packet
 string CMD;
 
-string source ="http://10.0.0.10:8080/stream/video.mjpeg"; // was argv[1];           // the source file name
+//Location of the source video.
+string source = "http://10.0.0.10:8080/stream/video.mjpeg";
 string PiADDR = "10.0.0.10";
 
 //SETUP TCP COMMS
@@ -34,11 +27,11 @@ int PORT=12345;
 SOCKET u_sock;
 
 //Made global to use within all functions.
-Size img_size = {640,480} ; //***PFC BUG fixed was {480,640}; //PFC default to VGA res. always with video feed  was -->//Left.size();
+Size img_size = {640,480};
 
 int targetSize = 16;
 
-//Rectangle must be global.
+//Rectangles must be global.
 Rect target = Rect((img_size.width / 2) - (targetSize /2), (img_size.height / 2) - (targetSize /2), targetSize, targetSize);
 Rect displayTarget = Rect((img_size.width / 2) - (targetSize /2), (img_size.height / 2) - (targetSize /2), targetSize, targetSize);
 
@@ -65,22 +58,6 @@ void ConnectAndSend() {
 #else
     OwlSendPacket (clientSock, CMD.c_str());
 #endif
-}
-
-static void saveXYZ(const char* filename, const Mat& mat)
-{
-    const double max_z = 1.0e4;
-    FILE* fp = fopen(filename, "wt");
-    for(int y = 0; y < mat.rows; y++)
-    {
-        for(int x = 0; x < mat.cols; x++)
-        {
-            Vec3f point = mat.at<Vec3f>(y, x);
-            if(fabs(point[2] - max_z) < FLT_EPSILON || fabs(point[2]) > max_z) continue;
-            fprintf(fp, "%f %f %f\n", point[0], point[1], point[2]);
-        }
-    }
-    fclose(fp);
 }
 
 void CallBackFunc(int event, int x, int y, int flags, void* userdata) {
@@ -120,19 +97,19 @@ int main(int argc, char** argv)
     std::string intrinsic_filename = "../../Data/intrinsics.xml";
     std::string extrinsic_filename = "../../Data/extrinsics.xml";
 
-    enum { STEREO_BM=0, STEREO_SGBM=1, STEREO_HH=2, STEREO_VAR=3, STEREO_3WAY=4 };
+    enum { STEREO_BM = 0, STEREO_SGBM = 1, STEREO_HH = 2, STEREO_VAR = 3, STEREO_3WAY = 4 };
     const int ALGORITHM = STEREO_SGBM; //PFC always do SGBM - colour
     //N-disparities and block size referenced in the lecture.
     const int NO_OF_DISP = 256  ; //256 is default.
-    const int SAD_BLOCK_SIZE = 3; //3 is default.
+    const int SAD_BLOCK_SIZE = 5; //3 is default.
     const bool IS_DISPLAY = false;
     const float SCALE_FACTOR = 1.0;
     const int COLOUR_MODE = ALGORITHM == STEREO_BM ? 0 : -1;
 
     int colourSum = 0;
 
-    Ptr<StereoBM> bm = StereoBM::create(16,9);
-    Ptr<StereoSGBM> sgbm = StereoSGBM::create(0,16,3);
+    Ptr<StereoBM> bm = StereoBM::create(16, 9);
+    Ptr<StereoSGBM> sgbm = StereoSGBM::create(0, 16, 3);
 
     if ( NO_OF_DISP < 1 || NO_OF_DISP % 16 != 0 )
     {
@@ -205,8 +182,8 @@ int main(int argc, char** argv)
             return -1;
         }
         //Rect region_of_interest = Rect(x, y, w, h);
-        bool inLOOP=true;
-        cv::Mat Frame,Left,Right;
+        bool inLOOP = true;
+        cv::Mat Frame, Left, Right;
         cv::Mat disp, disp8;
 
         //Creating a material for the target.
@@ -218,11 +195,11 @@ int main(int argc, char** argv)
             if (!cap.read(Frame))
             {
                 cout  << "Could not open the input video: " << source << endl;
-                //         break;
+                break;
             }
             // Split into LEFT and RIGHT images from the stereo pair sent as one MJPEG iamge
-            Right= Frame( Rect(0, 0, img_size.width, img_size.height)); // using a rectangle
-            Left= Frame( Rect(img_size.width, 0, img_size.width, img_size.height)); // using a rectangle
+            Right= Frame(Rect(0, 0, img_size.width, img_size.height));
+            Left= Frame(Rect(img_size.width, 0, img_size.width, img_size.height));
 
             Mat Leftr, Rightr;
             remap(Left, Leftr, map11, map12, INTER_LINEAR);
@@ -257,11 +234,11 @@ int main(int argc, char** argv)
             sgbm->setSpeckleWindowSize(100);
             sgbm->setSpeckleRange(32);
             sgbm->setDisp12MaxDiff(1);
-            if(ALGORITHM==STEREO_HH)
+            if(ALGORITHM == STEREO_HH)
                 sgbm->setMode(StereoSGBM::MODE_HH);
-            else if(ALGORITHM==STEREO_SGBM)
+            else if(ALGORITHM == STEREO_SGBM)
                 sgbm->setMode(StereoSGBM::MODE_SGBM);
-            else if(ALGORITHM==STEREO_3WAY)
+            else if(ALGORITHM == STEREO_3WAY)
                 sgbm->setMode(StereoSGBM::MODE_SGBM_3WAY);
 
 
@@ -276,7 +253,7 @@ int main(int argc, char** argv)
 
 
             if( ALGORITHM != STEREO_VAR ) {
-                disp.convertTo(disp8, CV_8U, 255/(NO_OF_DISP * 16.0));
+                disp.convertTo(disp8, CV_8U, 255 / (NO_OF_DISP * 16.0));
             } else {
                 disp.convertTo(disp8, CV_8U);
             }
@@ -313,20 +290,29 @@ int main(int argc, char** argv)
             //Put the value into distanceString for printing to the window.
             distanceString = to_string((int)colourSum) + "mm";
 
-            //If we are live targeting, flip the target and display it.
-            if (liveTargeting) {
-                flip(targetArray, targetArray, -1);
-                imshow("liveTarget", targetArray);
-            }
-
             //disp8 needs to be flipped before it can be shown.
-            flip(disp8,disp8,-1);
+            flip(disp8, disp8, -1);
 
             //Show target on disparity frame.
             rectangle(disp8, displayTarget, Scalar::all(255), 1, 8, 0);
             //Write on disparity window.
-            putText(disp8, "Distance:", cvPoint(450, 50), FONT_HERSHEY_DUPLEX, 1, Scalar::all(255), 0, 0, false);
-            putText(disp8, distanceString, cvPoint(475, 80), FONT_HERSHEY_DUPLEX, 1, Scalar::all(255), 0, 0, false);
+            //Writing distances
+            putText(disp8, "Distance:", cvPoint(445, 50), FONT_HERSHEY_DUPLEX, 1, Scalar::all(255), 0, 0, false);
+            putText(disp8, distanceString, cvPoint(470, 80), FONT_HERSHEY_DUPLEX, 1, Scalar::all(255), 0, 0, false);
+            //Writing liveTargeting status
+            putText(disp8, "Live Targeting:", cvPoint(390, 160), FONT_HERSHEY_DUPLEX, 1, Scalar::all(255), 0, 0, false);
+            putText(disp8, liveTargeting ? "True" : "False", cvPoint(475, 190), FONT_HERSHEY_DUPLEX, 1, Scalar::all(255), 0, 0, false);
+
+            //Instructions for enabling live targeting.
+            string temp = "Right click to ";
+            temp += liveTargeting? "disable" : "enable";
+            putText(disp8, temp, cvPoint(410, 400), FONT_HERSHEY_DUPLEX, 0.6, Scalar::all(255), 0, 0, false);
+            putText(disp8, "live targeting", cvPoint(455, 420), FONT_HERSHEY_DUPLEX, 0.6, Scalar::all(255), 0, 0, false);
+            if (liveTargeting) {
+                //Flip the targetArray for correct display orientation
+                flip(targetArray, targetArray, -1);
+                targetArray.copyTo(disp8(Rect(565, 175, targetArray.cols, targetArray.rows)));
+            }
             imshow("disparity", disp8);
 
             //Exit the disparity loop on a key press of 'q'
