@@ -58,7 +58,7 @@ void ConnectAndSend() {
     CMDstream.str("");
     CMDstream.clear();
     CMDstream << Rx << " " << Ry << " " << Lx << " " << Ly << " " << Neck;
-    cout << Rx << " " << Ry << " " << Lx << " " << Ly << " " << Neck << endl;
+    cout <<"Sending Data - "<< Rx << " " << Ry << " " << Lx << " " << Ly << " " << Neck << endl;
     CMD = CMDstream.str();
 #ifdef _WIN32
     OwlSendPacket (u_sock, CMD.c_str());
@@ -121,29 +121,30 @@ int main(int argc, char** argv)
     std::string extrinsic_filename = "../../Data/extrinsics.xml";
 
     enum { STEREO_BM=0, STEREO_SGBM=1, STEREO_HH=2, STEREO_VAR=3, STEREO_3WAY=4 };
-    int alg = STEREO_SGBM; //PFC always do SGBM - colour
+    const int ALGORITHM = STEREO_SGBM; //PFC always do SGBM - colour
     //N-disparities and block size referenced in the lecture.
-    int numberOfDisparities = 256  ; //256 is default.
-    int SADWindowSize = 3; //3 is default.
-    bool no_display = false;
-    float scale = 1.0;
-    int color_mode = alg == STEREO_BM ? 0 : -1;
+    const int NO_OF_DISP = 256  ; //256 is default.
+    const int SAD_BLOCK_SIZE = 3; //3 is default.
+    const bool IS_DISPLAY = false;
+    const float SCALE_FACTOR = 1.0;
+    const int COLOUR_MODE = ALGORITHM == STEREO_BM ? 0 : -1;
+
     int colourSum = 0;
 
     Ptr<StereoBM> bm = StereoBM::create(16,9);
     Ptr<StereoSGBM> sgbm = StereoSGBM::create(0,16,3);
 
-    if ( numberOfDisparities < 1 || numberOfDisparities % 16 != 0 )
+    if ( NO_OF_DISP < 1 || NO_OF_DISP % 16 != 0 )
     {
         printf("Command-line parameter error: The max disparity (--maxdisparity=<...>) must be a positive integer divisible by 16\n");
         return -1;
     }
-    if (scale < 0)
+    if (SCALE_FACTOR < 0)
     {
         printf("Error: The scale factor variable must be a positive floating-point number\n");
         return -1;
     }
-    if (SADWindowSize < 1 || SADWindowSize % 2 != 1)
+    if (SAD_BLOCK_SIZE < 1 || SAD_BLOCK_SIZE % 2 != 1)
     {
         printf("Error: The block size variable must be a positive odd number\n");
         return -1;
@@ -174,8 +175,8 @@ int main(int argc, char** argv)
         fs["M2"] >> M2;
         fs["D2"] >> D2;
 
-        M1 *= scale;
-        M2 *= scale;
+        M1 *= SCALE_FACTOR;
+        M2 *= SCALE_FACTOR;
 
         fs.open(extrinsic_filename, FileStorage::READ);
         if(!fs.isOpened())
@@ -233,9 +234,9 @@ int main(int argc, char** argv)
             bm->setROI1(roi1);
             bm->setROI2(roi2);
             bm->setPreFilterCap(31);
-            bm->setBlockSize(SADWindowSize);
+            bm->setBlockSize(SAD_BLOCK_SIZE);
             bm->setMinDisparity(0);
-            bm->setNumDisparities(numberOfDisparities);
+            bm->setNumDisparities(NO_OF_DISP);
             bm->setTextureThreshold(10);
             bm->setUniquenessRatio(15);
             bm->setSpeckleWindowSize(100);
@@ -243,7 +244,7 @@ int main(int argc, char** argv)
             bm->setDisp12MaxDiff(1);
 
             sgbm->setPreFilterCap(63);
-            int sgbmWinSize = SADWindowSize > 0 ? SADWindowSize : 3;
+            int sgbmWinSize = SAD_BLOCK_SIZE > 0 ? SAD_BLOCK_SIZE : 3;
             sgbm->setBlockSize(sgbmWinSize);
 
             int cn = Left.channels();
@@ -251,31 +252,31 @@ int main(int argc, char** argv)
             sgbm->setP1(8 * cn * sgbmWinSize * sgbmWinSize);
             sgbm->setP2(32 * cn * sgbmWinSize * sgbmWinSize);
             sgbm->setMinDisparity(0);
-            sgbm->setNumDisparities(numberOfDisparities);
+            sgbm->setNumDisparities(NO_OF_DISP);
             sgbm->setUniquenessRatio(10);
             sgbm->setSpeckleWindowSize(100);
             sgbm->setSpeckleRange(32);
             sgbm->setDisp12MaxDiff(1);
-            if(alg==STEREO_HH)
+            if(ALGORITHM==STEREO_HH)
                 sgbm->setMode(StereoSGBM::MODE_HH);
-            else if(alg==STEREO_SGBM)
+            else if(ALGORITHM==STEREO_SGBM)
                 sgbm->setMode(StereoSGBM::MODE_SGBM);
-            else if(alg==STEREO_3WAY)
+            else if(ALGORITHM==STEREO_3WAY)
                 sgbm->setMode(StereoSGBM::MODE_SGBM_3WAY);
 
 
             int64 t = getTickCount();
-            if( alg == STEREO_BM )
+            if( ALGORITHM == STEREO_BM )
                 bm->compute(Left, Right, disp);
-            else if( alg == STEREO_SGBM || alg == STEREO_HH || alg == STEREO_3WAY )
+            else if( ALGORITHM == STEREO_SGBM || ALGORITHM == STEREO_HH || ALGORITHM == STEREO_3WAY )
                 sgbm->compute(Left, Right, disp);
             t = getTickCount() - t;
             //calculates the time elapsed for calculation
             printf("Time elapsed: %fms\n", t * 1000 / getTickFrequency());
 
 
-            if( alg != STEREO_VAR ) {
-                disp.convertTo(disp8, CV_8U, 255/(numberOfDisparities * 16.0));
+            if( ALGORITHM != STEREO_VAR ) {
+                disp.convertTo(disp8, CV_8U, 255/(NO_OF_DISP * 16.0));
             } else {
                 disp.convertTo(disp8, CV_8U);
             }
@@ -337,6 +338,7 @@ int main(int argc, char** argv)
         } // end video loop
     } // end got intrinsics IF
 #ifdef _WIN32
+    cout << "Closing Socket" << endl;
     closesocket(u_sock);
 #else
     close(clientSock);
