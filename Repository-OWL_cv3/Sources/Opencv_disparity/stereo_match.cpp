@@ -34,11 +34,14 @@ string PiADDR = "10.0.0.10";
 int PORT=12345;
 SOCKET u_sock;
 
+//Made global to use within all functions.
+Size img_size = {640,480} ; //***PFC BUG fixed was {480,640}; //PFC default to VGA res. always with video feed  was -->//Left.size();
+
 int targetSize = 16;
 
 //Rectangle must be global.
-Rect target = Rect(320-(targetSize /2), 240-(targetSize /2), targetSize, targetSize);
-Rect displayTarget = Rect(320-(targetSize /2), 240-(targetSize /2), targetSize, targetSize);
+Rect target = Rect((img_size.width / 2) - (targetSize /2), (img_size.height / 2) - (targetSize /2), targetSize, targetSize);
+Rect displayTarget = Rect((img_size.width / 2) - (targetSize /2), (img_size.height / 2) - (targetSize /2), targetSize, targetSize);
 
 bool liveTargeting = false;
 
@@ -94,21 +97,26 @@ void CallBackFunc(int event, int x, int y, int flags, void* userdata) {
         if (liveTargeting) {
             //Check to see if target is out of bounds, if it is, reset it.
             //This prevents crashing for when the target bounds exceed the window.
-            if (x < (targetSize / 2) || x > 640 - (targetSize / 2) || y < (targetSize / 2) || y > 480 - (targetSize / 2)) {
-                displayTarget = Rect(320-(targetSize /2), 240-(targetSize /2), targetSize, targetSize);
-                target = Rect(320-(targetSize /2), 240-(targetSize /2), targetSize, targetSize);
+            if (x < (targetSize / 2) || x > img_size.width - (targetSize / 2) || y < (targetSize / 2) || y > img_size.height - (targetSize / 2)) {
+                //If we are out of bounds, reset the targets to the centre of the screen.
+                displayTarget = Rect((img_size.width / 2) - (targetSize /2), (img_size.height / 2) - (targetSize /2), targetSize, targetSize);
+                target = Rect((img_size.width / 2) - (targetSize /2), (img_size.height / 2) - (targetSize /2), targetSize, targetSize);
             } else {
+                //If we are not out of bounds, set the targets to the position of the mouse click.
                 displayTarget = Rect(x-(targetSize /2), y-(targetSize /2), targetSize, targetSize);
-                target = Rect(640 - x-(targetSize /2), 480 - y-(targetSize /2), targetSize, targetSize);
+                target = Rect(img_size.width - x-(targetSize /2), img_size.height - y-(targetSize /2), targetSize, targetSize);
             }
         }
-        cout << "Mouse clicked at: " << x << ", " << y << endl;
+        //cout << "Mouse clicked at: " << x << ", " << y << endl;
+      //Check for right click
     } else if (event == EVENT_RBUTTONDOWN) {
+        //Flip the live targeting boolean.
         liveTargeting = !liveTargeting;
         //If live targeting is turned off, reset the target position.
         if (!liveTargeting) {
-            displayTarget = Rect(320-(targetSize /2), 240-(targetSize /2), targetSize, targetSize);
-            target = Rect(320-(targetSize /2), 240-(targetSize /2), targetSize, targetSize);
+            displayTarget = Rect((img_size.width / 2) - (targetSize /2), (img_size.height / 2) - (targetSize /2), targetSize, targetSize);
+            target = Rect((img_size.width / 2) - (targetSize /2), (img_size.height / 2) - (targetSize /2), targetSize, targetSize);
+            //Close the window that displays the live target.
             destroyWindow("liveTarget");
         }
     }
@@ -238,7 +246,6 @@ int main(int argc, char** argv)
         Right = temp2;
     }
 */
-    Size img_size = {640,480} ; //***PFC BUG fixed was {480,640}; //PFC default to VGA res. always with video feed  was -->//Left.size();
 
     Rect roi1, roi2;
     Mat Q;
@@ -292,7 +299,9 @@ int main(int argc, char** argv)
         cv::Mat Frame,Left,Right;
         cv::Mat disp, disp8;
 
+        //Creating a material for the target.
         Mat targetArray;
+        //A scalar for the grey value of the current target pixel to be stored in.
         Scalar targetColour;
 
         while (inLOOP){
@@ -304,8 +313,8 @@ int main(int argc, char** argv)
             // Mat FrameFlpd; cv::flip(Frame,FrameFlpd,1); // Note that Left/Right are reversed now
             //Mat Gray; cv::cvtColor(Frame, Gray, cv::COLOR_BGR2GRAY);
             // Split into LEFT and RIGHT images from the stereo pair sent as one MJPEG iamge
-            Right= Frame( Rect(0, 0, 640, 480)); // using a rectangle
-            Left= Frame( Rect(640, 0, 640, 480)); // using a rectangle
+            Right= Frame( Rect(0, 0, img_size.width, img_size.height)); // using a rectangle
+            Left= Frame( Rect(img_size.width, 0, img_size.width, img_size.height)); // using a rectangle
             //DEBUG imshow("Left",Left);imshow("Right", Right);
             //waitKey(30); // display the images
 
@@ -383,17 +392,19 @@ int main(int argc, char** argv)
                 imshow("right", Right);
                 //namedWindow("disparity", 0);
 
-                //Do distance calculations.
-                //Check for mouse clicks first.
+                //Check for mouse clicks on disparity window before any calculations.
                 setMouseCallback("disparity", CallBackFunc, NULL);
 
+                //Calculations for distance begin here.
                 //Grab target here.
                 //targetArray = disp8(target);
                 disp8(target).copyTo(targetArray);
                 //Loop through entire target.
                 for (int i = 0; i < targetSize; i++) {
                     for (int j = 0; j < targetSize; j++) {
+                        //Get the pixel at i, j
                         targetColour = targetArray.at<uchar>(Point(i, j));
+                        //Add the greyscale value of said pixel to colour sum.
                         colourSum += targetColour[0];
                     }
                 }
@@ -401,20 +412,20 @@ int main(int argc, char** argv)
                 //Need to divide sum by amount of values to get average.
                 colourSum = colourSum / pow(targetSize, 2);
 
+                //Put the value into distanceString for printing to the window.
                 distanceString = to_string((int)colourSum) + "mm";
-                //Print out for debugging.
-                cout << "Average value = " << colourSum << endl;
+
                 //Reset colour sum after use.
                 colourSum = 0;
 
+                //If we are live targeting, flip the target and display it.
                 if (liveTargeting) {
                     flip(targetArray, targetArray, -1);
                     imshow("liveTarget", targetArray);
-                    flip(disp8,disp8,-1);
-                } else {
-                    //Flipped disparity window.
-                    flip(disp8,disp8,-1);
                 }
+
+                //disp8 needs to be flipped before it can be shown.
+                flip(disp8,disp8,-1);
 
                 //Show target on disparity frame.
                 rectangle(disp8, displayTarget, Scalar::all(255), 1, 8, 0);
