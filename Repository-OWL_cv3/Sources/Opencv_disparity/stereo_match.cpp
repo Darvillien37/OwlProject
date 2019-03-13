@@ -34,6 +34,16 @@ string PiADDR = "10.0.0.10";
 int PORT=12345;
 SOCKET u_sock;
 
+int targetSize = 16;
+
+//Rectangle must be global.
+Rect target = Rect(320-(targetSize /2), 240-(targetSize /2), targetSize, targetSize);
+Rect displayTarget = Rect(320-(targetSize /2), 240-(targetSize /2), targetSize, targetSize);
+
+bool liveTargeting = false;
+
+string distanceString = "";
+
 void ConnectAndSend() {
     u_sock = OwlCommsInit ( PORT, PiADDR);
 
@@ -79,6 +89,31 @@ static void saveXYZ(const char* filename, const Mat& mat)
     fclose(fp);
 }
 
+void CallBackFunc(int event, int x, int y, int flags, void* userdata) {
+    if ( event == EVENT_LBUTTONDOWN) {
+        if (liveTargeting) {
+            //Check to see if target is out of bounds, if it is, reset it.
+            //This prevents crashing for when the target bounds exceed the window.
+            if (x < (targetSize / 2) || x > 640 - (targetSize / 2) || y < (targetSize / 2) || y > 480 - (targetSize / 2)) {
+                displayTarget = Rect(320-(targetSize /2), 240-(targetSize /2), targetSize, targetSize);
+                target = Rect(320-(targetSize /2), 240-(targetSize /2), targetSize, targetSize);
+            } else {
+                displayTarget = Rect(x-(targetSize /2), y-(targetSize /2), targetSize, targetSize);
+                target = Rect(640 - x-(targetSize /2), 480 - y-(targetSize /2), targetSize, targetSize);
+            }
+        }
+        cout << "Mouse clicked at: " << x << ", " << y << endl;
+    } else if (event == EVENT_RBUTTONDOWN) {
+        liveTargeting = !liveTargeting;
+        //If live targeting is turned off, reset the target position.
+        if (!liveTargeting) {
+            displayTarget = Rect(320-(targetSize /2), 240-(targetSize /2), targetSize, targetSize);
+            target = Rect(320-(targetSize /2), 240-(targetSize /2), targetSize, targetSize);
+            destroyWindow("liveTarget");
+        }
+    }
+}
+
 int main(int argc, char** argv)
 {
     ConnectAndSend();
@@ -96,8 +131,6 @@ int main(int argc, char** argv)
     float scale;
 
     int colourSum = 0;
-
-    Rect target = Rect(320-16, 240-16, 32, 32);
 
     Ptr<StereoBM> bm = StereoBM::create(16,9);
     Ptr<StereoSGBM> sgbm = StereoSGBM::create(0,16,3);
@@ -340,23 +373,6 @@ int main(int argc, char** argv)
                 disp.convertTo(disp8, CV_8U);
             }
 
-            //Grab target here.
-            //image.at<char>(x,y);
-            targetArray = disp8(target);
-            //Loop through entire target.
-            for (int i = 0; i < 32; i++) {
-                for (int j = 0; j < 32; j++) {
-                    targetColour = targetArray.at<uchar>(Point(i, j));
-                    colourSum += targetColour[0];
-                }
-            }
-            //Need to divide sum by amount of values to get average.
-            colourSum = colourSum / (32*32);
-            cout << "Average value = " << colourSum << endl;
-            //Reset colour sum after use.
-            colourSum = 0;
-            imshow("targetPreview", targetArray);
-
             if( true )
             {   //Flipping all of the frames on the x axis before displaying.
                 //namedWindow("left", 1);
@@ -366,9 +382,45 @@ int main(int argc, char** argv)
                 flip(Right,Right,-1);
                 imshow("right", Right);
                 //namedWindow("disparity", 0);
-                flip(disp8,disp8,-1);
-                //Show target on right eye
-                rectangle(disp8, target, Scalar(0, 0, 255), 1, 8, 0);
+
+                //Do distance calculations.
+                //Check for mouse clicks first.
+                setMouseCallback("disparity", CallBackFunc, NULL);
+
+                //Grab target here.
+                //targetArray = disp8(target);
+                disp8(target).copyTo(targetArray);
+                //Loop through entire target.
+                for (int i = 0; i < targetSize; i++) {
+                    for (int j = 0; j < targetSize; j++) {
+                        targetColour = targetArray.at<uchar>(Point(i, j));
+                        colourSum += targetColour[0];
+                    }
+                }
+
+                //Need to divide sum by amount of values to get average.
+                colourSum = colourSum / pow(targetSize, 2);
+
+                distanceString = to_string((int)colourSum) + "mm";
+                //Print out for debugging.
+                cout << "Average value = " << colourSum << endl;
+                //Reset colour sum after use.
+                colourSum = 0;
+
+                if (liveTargeting) {
+                    flip(targetArray, targetArray, -1);
+                    imshow("liveTarget", targetArray);
+                    flip(disp8,disp8,-1);
+                } else {
+                    //Flipped disparity window.
+                    flip(disp8,disp8,-1);
+                }
+
+                //Show target on disparity frame.
+                rectangle(disp8, displayTarget, Scalar::all(255), 1, 8, 0);
+                //Write on disparity window.
+                putText(disp8, "Distance:", cvPoint(450, 50), FONT_HERSHEY_DUPLEX, 1, Scalar::all(255), 0, 0, false);
+                putText(disp8, distanceString, cvPoint(475, 80), FONT_HERSHEY_DUPLEX, 1, Scalar::all(255), 0, 0, false);
                 imshow("disparity", disp8);
                 //printf("press any key to continue...");
                 //fflush(stdout);
