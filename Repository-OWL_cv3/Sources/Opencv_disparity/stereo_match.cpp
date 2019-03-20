@@ -29,16 +29,22 @@ SOCKET u_sock;
 //Made global to use within all functions.
 Size img_size = {640,480};
 
-int targetSize = 16;
+//Size of the target (in pixels)
+const uint DEFAULT_TARGET_SIZE = 16;
+//Initialise the targetSize to the default, can be changed later on.
+uint targetSize = DEFAULT_TARGET_SIZE;
 
 //Rectangles must be global.
 Rect target = Rect((img_size.width / 2) - (targetSize /2), (img_size.height / 2) - (targetSize /2), targetSize, targetSize);
 Rect displayTarget = Rect((img_size.width / 2) - (targetSize /2), (img_size.height / 2) - (targetSize /2), targetSize, targetSize);
 
+//Boolean for live targeting
 bool liveTargeting = false;
 
+//Boolean for storing and displaying the distance of the target.
 string distanceString = "";
 
+//Variables for the cyclic buffer array used for averaging.
 const int CYCLIC_BUFFER_SIZE = 10;
 int cyclicBuffer[CYCLIC_BUFFER_SIZE];
 uint cyclicBufferIndex = 0;
@@ -46,6 +52,8 @@ int cyclicBufferSum = 0;
 int cyclicBufferAverage = 0;
 
 bool averaging = false;
+
+bool targetSizeChanged = false;
 
 void ConnectAndSend() {
     u_sock = OwlCommsInit ( PORT, PiADDR);
@@ -109,7 +117,7 @@ int main(int argc, char** argv)
     const int ALGORITHM = STEREO_SGBM; //PFC always do SGBM - colour
     //N-disparities and block size referenced in the lecture.
     const int NO_OF_DISP = 256  ; //256 is default.
-    const int SAD_BLOCK_SIZE = 5; //3 is default.
+    const int SAD_BLOCK_SIZE = 3; //3 is default.
     const bool IS_DISPLAY = false;
     const float SCALE_FACTOR = 1.0;
     const int COLOUR_MODE = ALGORITHM == STEREO_BM ? 0 : -1;
@@ -209,6 +217,16 @@ int main(int argc, char** argv)
             Right= Frame(Rect(0, 0, img_size.width, img_size.height));
             Left= Frame(Rect(img_size.width, 0, img_size.width, img_size.height));
 
+            //Put into an if statement to reduce performance hit by only updating rectangles
+            //Only if the size has been changed.
+            if (targetSizeChanged) {
+                //Update rectangles.
+                target = Rect((img_size.width / 2) - (targetSize /2), (img_size.height / 2) - (targetSize /2), targetSize, targetSize);
+                displayTarget = Rect((img_size.width / 2) - (targetSize /2), (img_size.height / 2) - (targetSize /2), targetSize, targetSize);
+
+                targetSizeChanged = false;
+            }
+
             Mat Leftr, Rightr;
             remap(Left, Leftr, map11, map12, INTER_LINEAR);
             remap(Right, Rightr, map21, map22, INTER_LINEAR);
@@ -295,19 +313,25 @@ int main(int argc, char** argv)
             //Need to divide sum by amount of values to get average.
             colourSum = colourSum / pow(targetSize, 2);
 
-            //AVERAGING
+            //Finds the average of the last 10 colourSums for a more consistent result.
             if (averaging) {
+                //Set cyclic buffer[cyclicBufferIndex] to colourSum
                 cyclicBuffer[cyclicBufferIndex] = colourSum;
+                //Increment the index in a cyclical manner
                 cyclicBufferIndex = (cyclicBufferIndex + 1) % CYCLIC_BUFFER_SIZE;
 
+                //Loop through the buffer array to get the average.
                 for (int i = 0; i < CYCLIC_BUFFER_SIZE; i++) {
                     cyclicBufferSum += cyclicBuffer[i];
                 }
 
+                //Once all of the elements have been summed, divide by the buffer size (10)
                 cyclicBufferAverage = cyclicBufferSum / CYCLIC_BUFFER_SIZE;
 
+                //Reset the buffer sum for use on next loop.
                 cyclicBufferSum = 0;
 
+                //Change distanceStrings value to the cyclicBuffer average.
                 distanceString = to_string((int)cyclicBufferAverage) + "mm";
             } else {
                 //Put the value into distanceString for printing to the window.
@@ -324,11 +348,14 @@ int main(int argc, char** argv)
             putText(disp8, "Distance:", cvPoint(445, 50), FONT_HERSHEY_DUPLEX, 1, Scalar::all(255), 0, 0, false);
             putText(disp8, distanceString, cvPoint(470, 80), FONT_HERSHEY_DUPLEX, 1, Scalar::all(255), 0, 0, false);
             //Writing liveTargeting status
-            putText(disp8, "Live Targeting:", cvPoint(390, 160), FONT_HERSHEY_DUPLEX, 1, Scalar::all(255), 0, 0, false);
-            putText(disp8, liveTargeting ? "True" : "False", cvPoint(475, 190), FONT_HERSHEY_DUPLEX, 1, Scalar::all(255), 0, 0, false);
-            //Write averaging
-            putText(disp8, "Averaging:", cvPoint(430, 270), FONT_HERSHEY_DUPLEX, 1, Scalar::all(255), 0, 0, false);
-            putText(disp8, averaging ? "True" : "False", cvPoint(475, 300), FONT_HERSHEY_DUPLEX, 1, Scalar::all(255), 0, 0, false);
+            putText(disp8, "Live Targeting:", cvPoint(390, 130), FONT_HERSHEY_DUPLEX, 1, Scalar::all(255), 0, 0, false);
+            putText(disp8, liveTargeting ? "True" : "False", cvPoint(475, 160), FONT_HERSHEY_DUPLEX, 1, Scalar::all(255), 0, 0, false);
+            //Write averaging status to screen.
+            putText(disp8, "Averaging:", cvPoint(430, 210), FONT_HERSHEY_DUPLEX, 1, Scalar::all(255), 0, 0, false);
+            putText(disp8, averaging ? "True" : "False", cvPoint(475, 240), FONT_HERSHEY_DUPLEX, 1, Scalar::all(255), 0, 0, false);
+            //Write targetSize to screen
+            putText(disp8, "targetSize:", cvPoint(430, 290), FONT_HERSHEY_DUPLEX, 1, Scalar::all(255), 0, 0, false);
+            putText(disp8, to_string(targetSize), cvPoint(495, 320), FONT_HERSHEY_DUPLEX, 1, Scalar::all(255), 0, 0, false);
 
             //Instructions for enabling live targeting.
             string temp = "Right click to ";
@@ -346,8 +373,17 @@ int main(int argc, char** argv)
             char key = waitKey(30);
             if (key=='q') {
                 break;
-            } else if (key =='a') {
+            } else if (key =='a') { // 'a' hotkey to enable or disable averaging.
                 averaging = !averaging;
+            } else if (key ==',') {
+                targetSizeChanged = true;
+                targetSize--;
+            } else if (key =='.') {
+                targetSizeChanged = true;
+                targetSize++;
+            } else if (key == 'd') {
+                targetSizeChanged = true;
+                targetSize = DEFAULT_TARGET_SIZE;
             }
 
         } // end video loop
