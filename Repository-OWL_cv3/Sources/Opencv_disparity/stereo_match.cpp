@@ -39,6 +39,14 @@ bool liveTargeting = false;
 
 string distanceString = "";
 
+const int CYCLIC_BUFFER_SIZE = 10;
+int cyclicBuffer[CYCLIC_BUFFER_SIZE];
+uint cyclicBufferIndex = 0;
+int cyclicBufferSum = 0;
+int cyclicBufferAverage = 0;
+
+bool averaging = false;
+
 void ConnectAndSend() {
     u_sock = OwlCommsInit ( PORT, PiADDR);
 
@@ -287,8 +295,24 @@ int main(int argc, char** argv)
             //Need to divide sum by amount of values to get average.
             colourSum = colourSum / pow(targetSize, 2);
 
-            //Put the value into distanceString for printing to the window.
-            distanceString = to_string((int)colourSum) + "mm";
+            //AVERAGING
+            if (averaging) {
+                cyclicBuffer[cyclicBufferIndex] = colourSum;
+                cyclicBufferIndex = (cyclicBufferIndex + 1) % CYCLIC_BUFFER_SIZE;
+
+                for (int i = 0; i < CYCLIC_BUFFER_SIZE; i++) {
+                    cyclicBufferSum += cyclicBuffer[i];
+                }
+
+                cyclicBufferAverage = cyclicBufferSum / CYCLIC_BUFFER_SIZE;
+
+                cyclicBufferSum = 0;
+
+                distanceString = to_string((int)cyclicBufferAverage) + "mm";
+            } else {
+                //Put the value into distanceString for printing to the window.
+                distanceString = to_string((int)colourSum) + "mm";
+            }
 
             //disp8 needs to be flipped before it can be shown.
             flip(disp8, disp8, -1);
@@ -302,6 +326,9 @@ int main(int argc, char** argv)
             //Writing liveTargeting status
             putText(disp8, "Live Targeting:", cvPoint(390, 160), FONT_HERSHEY_DUPLEX, 1, Scalar::all(255), 0, 0, false);
             putText(disp8, liveTargeting ? "True" : "False", cvPoint(475, 190), FONT_HERSHEY_DUPLEX, 1, Scalar::all(255), 0, 0, false);
+            //Write averaging
+            putText(disp8, "Averaging:", cvPoint(430, 270), FONT_HERSHEY_DUPLEX, 1, Scalar::all(255), 0, 0, false);
+            putText(disp8, averaging ? "True" : "False", cvPoint(475, 300), FONT_HERSHEY_DUPLEX, 1, Scalar::all(255), 0, 0, false);
 
             //Instructions for enabling live targeting.
             string temp = "Right click to ";
@@ -319,6 +346,8 @@ int main(int argc, char** argv)
             char key = waitKey(30);
             if (key=='q') {
                 break;
+            } else if (key =='a') {
+                averaging = !averaging;
             }
 
         } // end video loop
