@@ -30,7 +30,7 @@ SOCKET u_sock;
 Size img_size = {640,480};
 
 //Size of the target (in pixels)
-const uint DEFAULT_TARGET_SIZE = 16;
+const uint DEFAULT_TARGET_SIZE = 2;
 //Initialise the targetSize to the default, can be changed later on.
 uint targetSize = DEFAULT_TARGET_SIZE;
 
@@ -124,8 +124,8 @@ int main(int argc, char** argv)
     enum { STEREO_BM = 0, STEREO_SGBM = 1, STEREO_HH = 2, STEREO_VAR = 3, STEREO_3WAY = 4 };
     const int ALGORITHM = STEREO_SGBM; //PFC always do SGBM - colour
     //N-disparities and block size referenced in the lecture.
-    const int NO_OF_DISP = 256  ; //256 is default.
-    const int SAD_BLOCK_SIZE = 3; //3 is default.
+    const int NO_OF_DISP = 256; //256 is default.
+    const int SAD_BLOCK_SIZE = 5; //3 is default.
     const bool IS_DISPLAY = false;
     const float SCALE_FACTOR = 1.0;
     const int COLOUR_MODE = ALGORITHM == STEREO_BM ? 0 : -1;
@@ -285,7 +285,6 @@ int main(int argc, char** argv)
             //calculates the time elapsed for calculation
             // printf("Time elapsed: %fms\n", t * 1000 / getTickFrequency());
 
-
             if( ALGORITHM != STEREO_VAR ) {
                 disp.convertTo(disp8, CV_8U, 255 / (NO_OF_DISP * 16.0));
             } else {
@@ -309,7 +308,6 @@ int main(int argc, char** argv)
 
             //Reset colour sum before use.
             colourSum = 0;
-
             //Loop through every pixel on target.
             for (int i = 0; i < targetSize; i++) {
                 for (int j = 0; j < targetSize; j++) {
@@ -399,8 +397,9 @@ int main(int argc, char** argv)
             if (liveTargeting) {
                 //Flip the targetArray for correct display orientation
                 flip(targetArray, targetArray, -1);
-                targetArray.copyTo(disp8(Rect(565, 175, targetArray.cols, targetArray.rows)));
+                targetArray.copyTo(disp8(Rect(565, 145, targetArray.cols, targetArray.rows)));
             }
+
             imshow("disparity", disp8);
 
             //Exit the disparity loop on a key press of 'q'
@@ -418,6 +417,15 @@ int main(int argc, char** argv)
             } else if (key == 'd') {
                 targetSizeChanged = true;
                 targetSize = DEFAULT_TARGET_SIZE;
+            } else if (key == 'f') {
+                for (int i = 0; i < CYCLIC_BUFFER_SIZE; i++) {
+                    cyclicBuffer[i] = 0;
+                    cyclicBuffer2[i] = 0;
+                }
+                cyclicBufferIndex = 0;
+                cyclicBuffer2Index = 0;
+
+                cout << "Flushed buffers!" << endl;
             }
 
         } // end video loop
