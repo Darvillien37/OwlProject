@@ -34,10 +34,6 @@ const uint DEFAULT_TARGET_SIZE = 16;
 //Initialise the targetSize to the default, can be changed later on.
 uint targetSize = DEFAULT_TARGET_SIZE;
 
-//Black pixel counter for target
-//Used to get a more accurate result
-uint blackCounter = 0;
-
 //Rectangles must be global.
 Rect target = Rect((img_size.width / 2) - (targetSize /2), (img_size.height / 2) - (targetSize /2), targetSize, targetSize);
 Rect displayTarget = Rect((img_size.width / 2) - (targetSize /2), (img_size.height / 2) - (targetSize /2), targetSize, targetSize);
@@ -50,12 +46,20 @@ string distanceString = "";
 
 //Variables for the cyclic buffer array used for averaging.
 const int CYCLIC_BUFFER_SIZE = 10;
+
+//First cyclic buffer to find average of sums.
 int cyclicBuffer[CYCLIC_BUFFER_SIZE];
 uint cyclicBufferIndex = 0;
 int cyclicBufferSum = 0;
 int cyclicBufferAverage = 0;
 
-bool averaging = false;
+//Second cyclic buffer to average the averages.
+int cyclicBuffer2[CYCLIC_BUFFER_SIZE];
+uint cyclicBuffer2Index = 0;
+int cyclicBuffer2Sum = 0;
+int cyclicBuffer2Average = 0;
+
+bool averaging = true;
 
 bool targetSizeChanged = false;
 
@@ -225,8 +229,8 @@ int main(int argc, char** argv)
             //Only if the size has been changed.
             if (targetSizeChanged) {
                 //Update rectangles.
-                target = Rect((img_size.width / 2) - (targetSize /2), (img_size.height / 2) - (targetSize /2), targetSize, targetSize);
-                displayTarget = Rect((img_size.width / 2) - (targetSize /2), (img_size.height / 2) - (targetSize /2), targetSize, targetSize);
+                target = Rect(target.x, target.y, targetSize, targetSize);
+                displayTarget = Rect(displayTarget.x, displayTarget.y, targetSize, targetSize);
 
                 targetSizeChanged = false;
             }
@@ -272,14 +276,14 @@ int main(int argc, char** argv)
                 sgbm->setMode(StereoSGBM::MODE_SGBM_3WAY);
 
 
-            int64 t = getTickCount();
+            // int64 t = getTickCount();
             if( ALGORITHM == STEREO_BM )
                 bm->compute(Left, Right, disp);
             else if( ALGORITHM == STEREO_SGBM || ALGORITHM == STEREO_HH || ALGORITHM == STEREO_3WAY )
                 sgbm->compute(Left, Right, disp);
-            t = getTickCount() - t;
+            // t = getTickCount() - t;
             //calculates the time elapsed for calculation
-            printf("Time elapsed: %fms\n", t * 1000 / getTickFrequency());
+            // printf("Time elapsed: %fms\n", t * 1000 / getTickFrequency());
 
 
             if( ALGORITHM != STEREO_VAR ) {
@@ -305,33 +309,19 @@ int main(int argc, char** argv)
 
             //Reset colour sum before use.
             colourSum = 0;
+
             //Loop through every pixel on target.
             for (int i = 0; i < targetSize; i++) {
                 for (int j = 0; j < targetSize; j++) {
                     //Get the pixel at i, j
                     targetColour = targetArray.at<ushort>(Point(i, j));
-                    //Add the greyscale value of said pixel to colour sum.
+                    //Add the value of said pixel to colour sum.
                     colourSum += targetColour[0];
-                    if (targetColour[0] == 65520) {
-                        blackCounter++;
-                    }
+
                 }
             }
 
-            cout << "blackCounter = "<< blackCounter << endl;
-
-            //Adjusting for noise by ignoring completely black pixels
-            //After counting black pixels we discount them in the average division.
-            if (blackCounter == pow(targetSize, 2)) {
-                //Need to divide sum by amount of values to get average.
-                colourSum = colourSum / pow(targetSize, 2);
-            } else {
-                //Need to divide sum by amount of values to get average.
-                colourSum = colourSum / (pow(targetSize, 2) - blackCounter);
-            }
-
-            //Reset blackCounter after use
-            blackCounter = 0;
+            colourSum = colourSum / pow(targetSize, 2);
 
             //Finds the average of the last 10 colourSums for a more consistent result.
             if (averaging) {
@@ -340,19 +330,43 @@ int main(int argc, char** argv)
                 //Increment the index in a cyclical manner
                 cyclicBufferIndex = (cyclicBufferIndex + 1) % CYCLIC_BUFFER_SIZE;
 
-                //Loop through the buffer array to get the average.
+                //Only calculate the average when the buffer has filled with fresh values,
+                // which is when the index loops back to '0'
+                if(cyclicBufferIndex == 0){
+                    cout<< "---------------------------Average Buffer Ready" << endl;
+
+                    //----Calculate the average of the buffer:
+                    //Loop through the buffer array to get the average.
+                    for (int i = 0; i < CYCLIC_BUFFER_SIZE; i++) {
+                        cyclicBufferSum += cyclicBuffer[i];
+                    }
+                    //Once all of the elements have been summed, divide by the buffer size (10)
+                    cyclicBufferAverage = cyclicBufferSum / CYCLIC_BUFFER_SIZE;
+
+                    //Then put that average in the average-average buffer
+                    cyclicBuffer2[cyclicBuffer2Index] = cyclicBufferAverage;
+                    //Increment the index in a cyclical manner
+                    cyclicBuffer2Index = (cyclicBuffer2Index + 1) % CYCLIC_BUFFER_SIZE;
+
+                    if(cyclicBuffer2Index == 0){
+                        cout<< "---------------------------Average-Average Buffer Ready---------------------------" << endl;
+                    }
+                }//end if fresh average
+
+                //Loop through the Average -Average buffer to get the average of the averages.
                 for (int i = 0; i < CYCLIC_BUFFER_SIZE; i++) {
-                    cyclicBufferSum += cyclicBuffer[i];
+                    cyclicBuffer2Sum += cyclicBuffer2[i];
                 }
 
                 //Once all of the elements have been summed, divide by the buffer size (10)
-                cyclicBufferAverage = cyclicBufferSum / CYCLIC_BUFFER_SIZE;
+                cyclicBuffer2Average = cyclicBuffer2Sum / CYCLIC_BUFFER_SIZE;
 
                 //Reset the buffer sum for use on next loop.
                 cyclicBufferSum = 0;
+                cyclicBuffer2Sum = 0;
 
                 //Change distanceStrings value to the cyclicBuffer average.
-                distanceString = to_string((int)cyclicBufferAverage) + "mm";
+                distanceString = to_string((int)cyclicBuffer2Average) + "mm";
             } else {
                 //Put the value into distanceString for printing to the window.
                 distanceString = to_string((int)colourSum) + "mm";
