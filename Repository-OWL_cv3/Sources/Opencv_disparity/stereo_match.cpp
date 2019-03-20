@@ -34,6 +34,10 @@ const uint DEFAULT_TARGET_SIZE = 16;
 //Initialise the targetSize to the default, can be changed later on.
 uint targetSize = DEFAULT_TARGET_SIZE;
 
+//Black pixel counter for target
+//Used to get a more accurate result
+uint blackCounter = 0;
+
 //Rectangles must be global.
 Rect target = Rect((img_size.width / 2) - (targetSize /2), (img_size.height / 2) - (targetSize /2), targetSize, targetSize);
 Rect displayTarget = Rect((img_size.width / 2) - (targetSize /2), (img_size.height / 2) - (targetSize /2), targetSize, targetSize);
@@ -297,7 +301,7 @@ int main(int argc, char** argv)
 
             //Calculations for distance begin here.
             //Grab target here.
-            disp8(target).copyTo(targetArray);
+            disp(target).copyTo(targetArray);
 
             //Reset colour sum before use.
             colourSum = 0;
@@ -305,13 +309,29 @@ int main(int argc, char** argv)
             for (int i = 0; i < targetSize; i++) {
                 for (int j = 0; j < targetSize; j++) {
                     //Get the pixel at i, j
-                    targetColour = targetArray.at<uchar>(Point(i, j));
+                    targetColour = targetArray.at<ushort>(Point(i, j));
                     //Add the greyscale value of said pixel to colour sum.
                     colourSum += targetColour[0];
+                    if (targetColour[0] == 65520) {
+                        blackCounter++;
+                    }
                 }
             }
-            //Need to divide sum by amount of values to get average.
-            colourSum = colourSum / pow(targetSize, 2);
+
+            cout << "blackCounter = "<< blackCounter << endl;
+
+            //Adjusting for noise by ignoring completely black pixels
+            //After counting black pixels we discount them in the average division.
+            if (blackCounter == pow(targetSize, 2)) {
+                //Need to divide sum by amount of values to get average.
+                colourSum = colourSum / pow(targetSize, 2);
+            } else {
+                //Need to divide sum by amount of values to get average.
+                colourSum = colourSum / (pow(targetSize, 2) - blackCounter);
+            }
+
+            //Reset blackCounter after use
+            blackCounter = 0;
 
             //Finds the average of the last 10 colourSums for a more consistent result.
             if (averaging) {
