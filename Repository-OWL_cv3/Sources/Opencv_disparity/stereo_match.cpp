@@ -419,7 +419,7 @@ int main(int argc, char** argv)
             if (liveTargeting) {
                 //Flip the targetArray for correct display orientation
                 flip(targetArray, targetArray, -1);
-                targetArray.copyTo(disp8(Rect(565, 175, targetArray.cols, targetArray.rows)));
+                targetArray.copyTo(disp8(Rect(565, 145, targetArray.cols, targetArray.rows)));
             }
             imshow("disparity", disp8);
 
@@ -443,6 +443,15 @@ int main(int argc, char** argv)
                 targetSize = DEFAULT_TARGET_SIZE;
             } else if (key == 'h') {
                 HelpDialog();
+            } else if (key == 'f') {
+                for (int i = 0; i < CYCLIC_BUFFER_SIZE; i++) {
+                    cyclicBuffer[i] = 0;
+                    cyclicBuffer2[i] = 0;
+                }
+                cyclicBufferIndex = 0;
+                cyclicBuffer2Index = 0;
+
+                cout << "Flushed buffers!" << endl;
             }
         } // end video loop
     } // end got intrinsics IF
