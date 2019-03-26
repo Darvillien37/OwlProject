@@ -30,7 +30,7 @@ SOCKET u_sock;
 Size img_size = {640,480};
 
 //Size of the target (in pixels)
-const uint DEFAULT_TARGET_SIZE = 16;
+const uint DEFAULT_TARGET_SIZE = 2;
 //Initialise the targetSize to the default, can be changed later on.
 uint targetSize = DEFAULT_TARGET_SIZE;
 
@@ -146,8 +146,8 @@ int main(int argc, char** argv)
     enum { STEREO_BM = 0, STEREO_SGBM = 1, STEREO_HH = 2, STEREO_VAR = 3, STEREO_3WAY = 4 };
     const int ALGORITHM = STEREO_SGBM; //PFC always do SGBM - colour
     //N-disparities and block size referenced in the lecture.
-    const int NO_OF_DISP = 256  ; //256 is default.
-    const int SAD_BLOCK_SIZE = 3; //3 is default.
+    const int NO_OF_DISP = 256; //256 is default.
+    const int SAD_BLOCK_SIZE = 5; //3 is default.
     const bool IS_DISPLAY = false;
     const float SCALE_FACTOR = 1.0;
     const int COLOUR_MODE = ALGORITHM == STEREO_BM ? 0 : -1;
