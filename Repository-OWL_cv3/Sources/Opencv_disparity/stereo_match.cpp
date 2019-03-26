@@ -67,7 +67,7 @@ bool targetSizeChanged = false;
 //Material for displaying the help dialog.
 //Size needs to be changed to accommodate
 //and changes in the lines of text.
-Mat helpMat(Size(850, 330), CV_64FC1);
+Mat helpMat(Size(850, 285), CV_64FC1);
 
 void ConnectAndSend() {
     u_sock = OwlCommsInit ( PORT, PiADDR);
@@ -93,15 +93,15 @@ void ConnectAndSend() {
 void HelpDialog() {
     //Reset the mat before use, incase it has been used before
     //with a different status on the conditions.
-    helpMat = Mat(Size(850, 330), CV_64FC1);
+    helpMat = Mat(Size(850, 285), CV_64FC1);
     //Write all the helptext here.
     //50px apart for a new instruction, 30px for seperate lines of the same instruction.
-    putText(helpMat, liveTargeting ? "Right click to disable live targeting." : "Right click to enable live targeting.", cvPoint(10, 30), FONT_HERSHEY_DUPLEX, 0.8, Scalar::all(255), 0, 0, false);                                                                                                                                                                putText(helpMat, "Press 'a' to enable/disable averaging.", cvPoint(10, 80), FONT_HERSHEY_DUPLEX, 0.8, Scalar::all(255), 0, 0, false);
+    putText(helpMat, liveTargeting ? "Right click to disable live targeting." : "Right click to enable live targeting.", cvPoint(10, 30), FONT_HERSHEY_DUPLEX, 0.8, Scalar::all(255), 0, 0, false);
+    putText(helpMat, averaging ? "Press 'a' to disable averaging." : "Press 'a' to enable averaging.", cvPoint(10, 80), FONT_HERSHEY_DUPLEX, 0.8, Scalar::all(255), 0, 0, false);
     putText(helpMat, "-Averaging takes the last 10 averages and averages", cvPoint(30, 110), FONT_HERSHEY_DUPLEX, 0.8, Scalar::all(255), 0, 0, false);
     putText(helpMat, "those for a much more consistent result.", cvPoint(30, 140), FONT_HERSHEY_DUPLEX, 0.8, Scalar::all(255), 0, 0, false);
     putText(helpMat, "Use ',' and '.' to increase/decrease the targetSize respectively.", cvPoint(10, 190), FONT_HERSHEY_DUPLEX, 0.8, Scalar::all(255), 0, 0, false);
     putText(helpMat, "Use 'd' to set targetSize location + size back to defaults.", cvPoint(10, 240), FONT_HERSHEY_DUPLEX, 0.8, Scalar::all(255), 0, 0, false);
-    putText(helpMat, averaging ? "Right click to disable live targeting." : "Right click to enable live targeting.", cvPoint(10, 290), FONT_HERSHEY_DUPLEX, 0.8, Scalar::all(255), 0, 0, false);
     imshow("Help", helpMat);
 }
 
