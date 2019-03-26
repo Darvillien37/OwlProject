@@ -59,9 +59,15 @@ uint cyclicBuffer2Index = 0;
 int cyclicBuffer2Sum = 0;
 int cyclicBuffer2Average = 0;
 
-bool averaging = true;
+bool averaging = false;
 
 bool targetSizeChanged = false;
+
+
+//Material for displaying the help dialog.
+//Size needs to be changed to accommodate
+//and changes in the lines of text.
+Mat helpMat(Size(850, 330), CV_64FC1);
 
 void ConnectAndSend() {
     u_sock = OwlCommsInit ( PORT, PiADDR);
@@ -82,6 +88,21 @@ void ConnectAndSend() {
 #else
     OwlSendPacket (clientSock, CMD.c_str());
 #endif
+}
+
+void HelpDialog() {
+    //Reset the mat before use, incase it has been used before
+    //with a different status on the conditions.
+    helpMat = Mat(Size(850, 330), CV_64FC1);
+    //Write all the helptext here.
+    //50px apart for a new instruction, 30px for seperate lines of the same instruction.
+    putText(helpMat, liveTargeting ? "Right click to disable live targeting." : "Right click to enable live targeting.", cvPoint(10, 30), FONT_HERSHEY_DUPLEX, 0.8, Scalar::all(255), 0, 0, false);                                                                                                                                                                putText(helpMat, "Press 'a' to enable/disable averaging.", cvPoint(10, 80), FONT_HERSHEY_DUPLEX, 0.8, Scalar::all(255), 0, 0, false);
+    putText(helpMat, "-Averaging takes the last 10 averages and averages", cvPoint(30, 110), FONT_HERSHEY_DUPLEX, 0.8, Scalar::all(255), 0, 0, false);
+    putText(helpMat, "those for a much more consistent result.", cvPoint(30, 140), FONT_HERSHEY_DUPLEX, 0.8, Scalar::all(255), 0, 0, false);
+    putText(helpMat, "Use ',' and '.' to increase/decrease the targetSize respectively.", cvPoint(10, 190), FONT_HERSHEY_DUPLEX, 0.8, Scalar::all(255), 0, 0, false);
+    putText(helpMat, "Use 'd' to set targetSize location + size back to defaults.", cvPoint(10, 240), FONT_HERSHEY_DUPLEX, 0.8, Scalar::all(255), 0, 0, false);
+    putText(helpMat, averaging ? "Right click to disable live targeting." : "Right click to enable live targeting.", cvPoint(10, 290), FONT_HERSHEY_DUPLEX, 0.8, Scalar::all(255), 0, 0, false);
+    imshow("Help", helpMat);
 }
 
 void CallBackFunc(int event, int x, int y, int flags, void* userdata) {
@@ -108,9 +129,10 @@ void CallBackFunc(int event, int x, int y, int flags, void* userdata) {
         if (!liveTargeting) {
             displayTarget = Rect((img_size.width / 2) - (targetSize /2), (img_size.height / 2) - (targetSize /2), targetSize, targetSize);
             target = Rect((img_size.width / 2) - (targetSize /2), (img_size.height / 2) - (targetSize /2), targetSize, targetSize);
-            //Close the window that displays the live target.
-            destroyWindow("liveTarget");
         }
+        //We call HelpDialog to update the help panel
+        //with the correct enable/disable string.
+        HelpDialog();
     }
 }
 
@@ -391,11 +413,9 @@ int main(int argc, char** argv)
             putText(disp8, "targetSize:", cvPoint(430, 290), FONT_HERSHEY_DUPLEX, 1, Scalar::all(255), 0, 0, false);
             putText(disp8, to_string(targetSize), cvPoint(495, 320), FONT_HERSHEY_DUPLEX, 1, Scalar::all(255), 0, 0, false);
 
-            //Instructions for enabling live targeting.
-            string temp = "Right click to ";
-            temp += liveTargeting? "disable" : "enable";
-            putText(disp8, temp, cvPoint(410, 400), FONT_HERSHEY_DUPLEX, 0.6, Scalar::all(255), 0, 0, false);
-            putText(disp8, "live targeting", cvPoint(455, 420), FONT_HERSHEY_DUPLEX, 0.6, Scalar::all(255), 0, 0, false);
+            //Instructions for opening the help dialog
+            putText(disp8, "Please press 'h' to", cvPoint(420, 400), FONT_HERSHEY_DUPLEX, 0.6, Scalar::all(255), 0, 0, false);
+            putText(disp8, "open the help dialog.", cvPoint(410, 420), FONT_HERSHEY_DUPLEX, 0.6, Scalar::all(255), 0, 0, false);
             if (liveTargeting) {
                 //Flip the targetArray for correct display orientation
                 flip(targetArray, targetArray, -1);
@@ -409,6 +429,9 @@ int main(int argc, char** argv)
                 break;
             } else if (key =='a') { // 'a' hotkey to enable or disable averaging.
                 averaging = !averaging;
+                //We call HelpDialog to update the help panel
+                //with the correct enable/disable string.
+                HelpDialog();
             } else if (key ==',') {
                 targetSizeChanged = true;
                 targetSize--;
@@ -418,8 +441,9 @@ int main(int argc, char** argv)
             } else if (key == 'd') {
                 targetSizeChanged = true;
                 targetSize = DEFAULT_TARGET_SIZE;
+            } else if (key == 'h') {
+                HelpDialog();
             }
-
         } // end video loop
     } // end got intrinsics IF
 #ifdef _WIN32
