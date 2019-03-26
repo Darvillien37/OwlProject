@@ -59,10 +59,13 @@ uint cyclicBuffer2Index = 0;
 int cyclicBuffer2Sum = 0;
 int cyclicBuffer2Average = 0;
 
-bool averaging = false;
+bool averaging = true;
 
 bool targetSizeChanged = false;
 
+int wrongCount = 0;
+
+bool showHelp = false;
 
 //Material for displaying the help dialog.
 //Size needs to be changed to accommodate
@@ -91,6 +94,9 @@ void ConnectAndSend() {
 }
 
 void HelpDialog() {
+    if (!showHelp) {
+        return;
+    }
     //Reset the mat before use, incase it has been used before
     //with a different status on the conditions.
     helpMat = Mat(Size(850, 285), CV_64FC1);
@@ -332,18 +338,27 @@ int main(int argc, char** argv)
             //Reset colour sum before use.
             colourSum = 0;
 
+            //Reset wrongCount before use.
+            wrongCount = 0;
             //Loop through every pixel on target.
             for (int i = 0; i < targetSize; i++) {
                 for (int j = 0; j < targetSize; j++) {
                     //Get the pixel at i, j
                     targetColour = targetArray.at<ushort>(Point(i, j));
                     //Add the value of said pixel to colour sum.
-                    colourSum += targetColour[0];
-
+                    if (targetColour[0] == 65520.0 || targetColour[0] == 0.0) {
+                        wrongCount++;
+                    } else {
+                        colourSum += targetColour[0];
+                    }
                 }
             }
 
-            colourSum = colourSum / pow(targetSize, 2);
+            if (wrongCount != pow(targetSize, 2)) {
+                colourSum = colourSum / (pow(targetSize, 2) - wrongCount);
+            } else {
+                colourSum = colourSum / pow(targetSize, 2);
+            }
 
             //Finds the average of the last 10 colourSums for a more consistent result.
             if (averaging) {
@@ -394,6 +409,7 @@ int main(int argc, char** argv)
                 distanceString = to_string((int)colourSum) + "mm";
             }
 
+
             //disp8 needs to be flipped before it can be shown.
             flip(disp8, disp8, -1);
 
@@ -442,6 +458,7 @@ int main(int argc, char** argv)
                 targetSizeChanged = true;
                 targetSize = DEFAULT_TARGET_SIZE;
             } else if (key == 'h') {
+                showHelp = !showHelp;
                 HelpDialog();
             } else if (key == 'f') {
                 for (int i = 0; i < CYCLIC_BUFFER_SIZE; i++) {
