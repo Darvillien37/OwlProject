@@ -44,7 +44,7 @@ bool liveTargeting = false;
 //Boolean for storing and displaying the distance of the target.
 string distanceString = "";
 //Integer for saving the distance value.
-int distanceValue = 0;
+double distanceValue = 0;
 int colourValue= 0;
 
 //Variables for the cyclic buffer array used for averaging.
@@ -143,6 +143,13 @@ void CallBackFunc(int event, int x, int y, int flags, void* userdata) {
         //with the correct enable/disable string.
         HelpDialog();
     }
+}
+
+//Calculate the distance of an object in the disparity window.
+//Based on the brightness, equation taken from LOBF
+double DistanceEquation(int brightness) {
+    // distance = 324314 * brightness^-0.918
+    return 324314 * pow(brightness, -0.918);
 }
 
 int main(int argc, char** argv)
@@ -410,8 +417,9 @@ int main(int argc, char** argv)
                 colourValue = colourSum;
             }
 
-            //Put the value into distanceString for printing to the window.
-            distanceValue = 324314 * pow(colourValue, -0.918);
+            //Calculate the Distance:
+            //Put the value into distanceValue for printing to the window.
+            distanceValue = DistanceEquation(colourValue);
             cout << "Brightness: " << colourValue << ", Distance: " << distanceValue << endl;
             distanceString = to_string((int)distanceValue) + "mm";
 
