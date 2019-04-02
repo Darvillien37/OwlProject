@@ -43,6 +43,9 @@ bool liveTargeting = false;
 
 //Boolean for storing and displaying the distance of the target.
 string distanceString = "";
+//Integer for saving the distance value.
+int distanceValue = 0;
+int colourValue= 0;
 
 //Variables for the cyclic buffer array used for averaging.
 const int CYCLIC_BUFFER_SIZE = 10;
@@ -370,7 +373,7 @@ int main(int argc, char** argv)
                 //Only calculate the average when the buffer has filled with fresh values,
                 // which is when the index loops back to '0'
                 if(cyclicBufferIndex == 0){
-                    cout<< "---------------------------Average Buffer Ready" << endl;
+                    // cout<< "---------------------------Average Buffer Ready" << endl;
 
                     //----Calculate the average of the buffer:
                     //Loop through the buffer array to get the average.
@@ -402,12 +405,15 @@ int main(int argc, char** argv)
                 cyclicBufferSum = 0;
                 cyclicBuffer2Sum = 0;
 
-                //Change distanceStrings value to the cyclicBuffer average.
-                distanceString = to_string((int)cyclicBuffer2Average) + "mm";
+                colourValue = cyclicBuffer2Average;
             } else {
-                //Put the value into distanceString for printing to the window.
-                distanceString = to_string((int)colourSum) + "mm";
+                colourValue = colourSum;
             }
+
+            //Put the value into distanceString for printing to the window.
+            distanceValue = 324314 * pow(colourValue, -0.918);
+            cout << "Brightness: " << colourValue << ", Distance: " << distanceValue << endl;
+            distanceString = to_string((int)distanceValue) + "mm";
 
 
             //disp8 needs to be flipped before it can be shown.
