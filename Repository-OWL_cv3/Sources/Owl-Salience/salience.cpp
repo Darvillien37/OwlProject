@@ -44,7 +44,7 @@
 #include <string>   // for strings
 
 
-#define PX2DEG  0.0768 // how do calc?
+#define PX2DEG  0.0911
 #define DEG2PWM 10.98
 #define IPD 67
 
@@ -208,31 +208,16 @@ int main(int argc, char *argv[])
         Point GlobalPos;    // Position of camera view within the range of movement of the OWL
         GlobalPos.x = static_cast<int>(900 + ((-(Neck - NeckC) + (Lx - LxC)) / DEG2PWM) / PX2DEG);
         GlobalPos.y = static_cast<int>(500 + ((Ly - LyC) / DEG2PWM) / PX2DEG);
-        
-        cout << "X: "<< GlobalPos.x << "\tY: " << GlobalPos.y << endl;
-
-        if(GlobalPos.x < 0){
-           GlobalPos.x = 0;
-        }
-
-        if (GlobalPos.y < 0){
-            GlobalPos.y = 0;
-        }
-
-        if(GlobalPos.x > ((PanView.rows - Left.rows) - 1)){
-            GlobalPos.x = (PanView.rows - Left.rows) - 1;
-        }
-
-        if(GlobalPos.y > (PanView.cols - Left.cols) - 1){
-            GlobalPos.y = (PanView.cols - Left.cols) - 1;
-        }
-
 
         Mat familiarLocal = familiar(Rect(GlobalPos.x, GlobalPos.y, Left.cols, Left.rows));
+
+        cout << "X: "<< GlobalPos.x << "\tY: " << GlobalPos.y << endl;
+
+
         //imshow("familiarLocal",familiarLocal);
         
         //====================================Combine maps into saliency map=====================================
-        //cout<<"Salience"<<endl;
+        //cout << "Salience" << endl;
         
         
         //Convert 8-bit Mat to 32bit floating point
@@ -270,7 +255,7 @@ int main(int argc, char *argv[])
                  yDifference * 1,
                  (Lx - LxC) / 100);
         
-        // Update Familarity Map //
+        // Update Familarity Map
         // Familiar map to inhibit salient targets once observed (this is a global map)
         double longitude = (((Ly - LyC) / DEG2PWM) + maxLoc.y * PX2DEG);//calculate longitude as the global map is a spherical projection
         // ensure dwell time at perimeter of map is similar to that at centre.
@@ -280,7 +265,7 @@ int main(int argc, char *argv[])
         }
         
         Mat familiarNew = familiar.clone();
-        circle(familiarNew, GlobalPos+maxLoc, static_cast<int>(60 / cos(longitude * PI / 180)), 0, -1);
+        circle(familiarNew, GlobalPos + maxLoc, static_cast<int>(60 / cos(longitude * PI / 180)), 0, -1);
         cv::blur(familiarNew, familiarNew, Size(151, 151)); //Blur used to save on processing
         normalize(familiarNew, familiarNew, 0, 255, CV_MINMAX, CV_8U);
         addWeighted(familiarNew,
@@ -314,6 +299,23 @@ int main(int argc, char *argv[])
         //=======================================Update Global View===========================================
         //cout << "Global View" << endl;
         if(GlobalPos != Point(0, 0)){
+
+//            if(GlobalPos.x < 0){
+//               GlobalPos.x = 0;
+//            }
+
+//            if (GlobalPos.y < 0){
+//                GlobalPos.y = 0;
+//            }
+
+//            if(GlobalPos.x > (PanView.rows - 1)) {
+//                GlobalPos.x = PanView.rows - 1;
+//            }
+
+//            if(GlobalPos.y > PanView.cols  - 1) {
+//                GlobalPos.y = PanView.cols  - 1;
+//            }
+
             Mat LeftCrop = Left(Rect(220, 140, 200, 200));//image cropped to minimize image stitching artifacts
             LeftCrop.copyTo(PanView(Rect(GlobalPos.x, GlobalPos.y, LeftCrop.cols, LeftCrop.rows)));
             Mat PanViewSmall;
