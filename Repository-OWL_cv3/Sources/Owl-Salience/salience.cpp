@@ -44,9 +44,9 @@
 #include <string>   // for strings
 
 
-#define PX2DEG  0.0768
-#define DEG2PWM 10.730
-#define IPD 58.3
+#define PX2DEG  0.0768 // how do calc?
+#define DEG2PWM 10.98
+#define IPD 67
 
 #define xOffset  -0.3815
 #define yOffset -54.6682
@@ -57,9 +57,9 @@ using namespace std;
 using namespace cv;
 
 // PFC/JR messy decls, but works under openCV 3.4
-string ServoAbs(double DEGRx,double DEGRy,double DEGLx,double DEGLy,double DEGNeck);
-string ServoRel(double DEGRx,double DEGRy,double DEGLx,double DEGLy,double DEGNeck);
-string TrackCorrelTarget (OwlCorrel OWL);
+string ServoAbs(double DEGRx, double DEGRy, double DEGLx, double DEGLy, double DEGNeck);
+string ServoRel(double DEGRx, double DEGRy, double DEGLx, double DEGLy, double DEGNeck);
+string TrackCorrelTarget(OwlCorrel OWL);
 int OwlCalCapture(cv::VideoCapture &cap, string Folder);
 
 
@@ -73,7 +73,6 @@ static SOCKET u_sock = OwlCommsInit(PORT, PiADDR);
 static ostringstream CMDstream; // string packet
 static string CMD;
 
-static int Ry,Rx,Ly,Lx,Neck; // calculate values for position
 
 //Default feature map weights
 static int ColourWeight = 60; //Saturation and Brightness
@@ -210,21 +209,23 @@ int main(int argc, char *argv[])
         GlobalPos.x = static_cast<int>(900 + ((-(Neck - NeckC) + (Lx - LxC)) / DEG2PWM) / PX2DEG);
         GlobalPos.y = static_cast<int>(500 + ((Ly - LyC) / DEG2PWM) / PX2DEG);
         
-//        if(GlobalPos.x < 0){
-//           GlobalPos.x = 0;
-//        }
+        cout << "X: "<< GlobalPos.x << "\tY: " << GlobalPos.y << endl;
 
-//        if (GlobalPos.y < 0){
-//            GlobalPos.y = 0;
-//        }
+        if(GlobalPos.x < 0){
+           GlobalPos.x = 0;
+        }
 
-//        if(GlobalPos.x > Left.rows - familiar.rows){
+        if (GlobalPos.y < 0){
+            GlobalPos.y = 0;
+        }
 
-//        }
+        if(GlobalPos.x > ((PanView.rows - Left.rows) - 1)){
+            GlobalPos.x = (PanView.rows - Left.rows) - 1;
+        }
 
-//        if(GlobalPos.y > familiar.cols){
-
-//        }
+        if(GlobalPos.y > (PanView.cols - Left.cols) - 1){
+            GlobalPos.y = (PanView.cols - Left.cols) - 1;
+        }
 
 
         Mat familiarLocal = familiar(Rect(GlobalPos.x, GlobalPos.y, Left.cols, Left.rows));
