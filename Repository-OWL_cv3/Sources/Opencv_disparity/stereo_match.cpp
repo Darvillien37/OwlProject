@@ -30,7 +30,7 @@ SOCKET u_sock;
 Size img_size = {640,480};
 
 //Size of the target (in pixels)
-const uint DEFAULT_TARGET_SIZE = 2;
+const uint DEFAULT_TARGET_SIZE = 12;
 //Initialise the targetSize to the default, can be changed later on.
 uint targetSize = DEFAULT_TARGET_SIZE;
 
@@ -62,7 +62,7 @@ uint cyclicBuffer2Index = 0;
 int cyclicBuffer2Sum = 0;
 int cyclicBuffer2Average = 0;
 
-bool averaging = true;
+bool averaging = false;
 
 bool targetSizeChanged = false;
 
@@ -102,15 +102,16 @@ void HelpDialog() {
     }
     //Reset the mat before use, incase it has been used before
     //with a different status on the conditions.
-    helpMat = Mat(Size(850, 285), CV_64FC1);
+    helpMat = Mat(Size(850, 335), CV_64FC1);
     //Write all the helptext here.
     //50px apart for a new instruction, 30px for seperate lines of the same instruction.
     putText(helpMat, liveTargeting ? "Right click to disable live targeting." : "Right click to enable live targeting.", cvPoint(10, 30), FONT_HERSHEY_DUPLEX, 0.8, Scalar::all(255), 0, 0, false);
-    putText(helpMat, averaging ? "Press 'a' to disable averaging." : "Press 'a' to enable averaging.", cvPoint(10, 80), FONT_HERSHEY_DUPLEX, 0.8, Scalar::all(255), 0, 0, false);
+    putText(helpMat, averaging ? "Use 'a' to disable averaging." : "Press 'a' to enable averaging.", cvPoint(10, 80), FONT_HERSHEY_DUPLEX, 0.8, Scalar::all(255), 0, 0, false);
     putText(helpMat, "-Averaging takes the last 10 averages and averages", cvPoint(30, 110), FONT_HERSHEY_DUPLEX, 0.8, Scalar::all(255), 0, 0, false);
     putText(helpMat, "those for a much more consistent result.", cvPoint(30, 140), FONT_HERSHEY_DUPLEX, 0.8, Scalar::all(255), 0, 0, false);
-    putText(helpMat, "Use ',' and '.' to increase/decrease the targetSize respectively.", cvPoint(10, 190), FONT_HERSHEY_DUPLEX, 0.8, Scalar::all(255), 0, 0, false);
-    putText(helpMat, "Use 'd' to set target location + size back to defaults.", cvPoint(10, 240), FONT_HERSHEY_DUPLEX, 0.8, Scalar::all(255), 0, 0, false);
+        putText(helpMat, "Use 'f' to flush the average array buffers.", cvPoint(10, 190), FONT_HERSHEY_DUPLEX, 0.8, Scalar::all(255), 0, 0, false);
+    putText(helpMat, "Use ',' and '.' to increase/decrease the targetSize respectively.", cvPoint(10, 240), FONT_HERSHEY_DUPLEX, 0.8, Scalar::all(255), 0, 0, false);
+    putText(helpMat, "Use 'd' to set target location + size back to defaults.", cvPoint(10, 290), FONT_HERSHEY_DUPLEX, 0.8, Scalar::all(255), 0, 0, false);
     imshow("Help", helpMat);
 }
 
@@ -148,8 +149,12 @@ void CallBackFunc(int event, int x, int y, int flags, void* userdata) {
 //Calculate the distance of an object in the disparity window.
 //Based on the brightness, equation taken from LOBF
 double DistanceEquation(int brightness) {
-    // distance = 324314 * brightness^-0.918
-    return 324314 * pow(brightness, -0.918);
+    // estimate = 324314 * brightness^-0.918
+    double estimate = 324314 * pow(brightness, -0.918);
+    //Apply the correction, gathered from measuring inaccuracies
+    // estimate = 1.0911 - 13.955
+    estimate = (1.0911 * estimate) - 13.955;
+    return estimate;
 }
 
 int main(int argc, char** argv)
