@@ -62,12 +62,17 @@ uint cyclicBuffer2Index = 0;
 int cyclicBuffer2Sum = 0;
 int cyclicBuffer2Average = 0;
 
+//A boolean for whether the displayed value should be averaged or live
 bool averaging = false;
 
+//Used to fix position resetting when changing targetSize.
 bool targetSizeChanged = false;
 
+//A form of noise correction - Used to count the amount of pixels that contain no data
+//So they can be accounted for in the averaging.
 int wrongCount = 0;
 
+//A boolean to control when the Help dialog is visible.
 bool showHelp = false;
 
 //Material for displaying the help dialog.
@@ -75,15 +80,19 @@ bool showHelp = false;
 //and changes in the lines of text.
 Mat helpMat(Size(850, 285), CV_64FC1);
 
+//Connects to the owl and sends the toe-in data.
 void ConnectAndSend() {
+    //Create new socket to the owl.
     u_sock = OwlCommsInit ( PORT, PiADDR);
 
+    //Toe-in values.
     const int Rx=1520 - 20;
     const int Ry=1450;
     const int Lx=1540 + 20;
     const int Ly=1550;
     const int Neck = 1540;
 
+    //Send the values to the owl.
     CMDstream.str("");
     CMDstream.clear();
     CMDstream << Rx << " " << Ry << " " << Lx << " " << Ly << " " << Neck;
@@ -96,10 +105,12 @@ void ConnectAndSend() {
 #endif
 }
 
+//Function for Showing the help dialog.
 void HelpDialog() {
+    //If show help is false, break from function.
     if (!showHelp) {
         return;
-    }
+    } //Otherwise..
     //Reset the mat before use, incase it has been used before
     //with a different status on the conditions.
     helpMat = Mat(Size(850, 335), CV_64FC1);
@@ -112,10 +123,13 @@ void HelpDialog() {
         putText(helpMat, "Use 'f' to flush the average array buffers.", cvPoint(10, 190), FONT_HERSHEY_DUPLEX, 0.8, Scalar::all(255), 0, 0, false);
     putText(helpMat, "Use ',' and '.' to increase/decrease the targetSize respectively.", cvPoint(10, 240), FONT_HERSHEY_DUPLEX, 0.8, Scalar::all(255), 0, 0, false);
     putText(helpMat, "Use 'd' to set target location + size back to defaults.", cvPoint(10, 290), FONT_HERSHEY_DUPLEX, 0.8, Scalar::all(255), 0, 0, false);
+    //Show the Help dialog.
     imshow("Help", helpMat);
 }
 
+//Used to capture mouse events within the OpenCV window.
 void CallBackFunc(int event, int x, int y, int flags, void* userdata) {
+    //If a left click event is captured:
     if ( event == EVENT_LBUTTONDOWN) {
         if (liveTargeting) {
             //Check to see if target is out of bounds, if it is, reset it.
@@ -130,8 +144,7 @@ void CallBackFunc(int event, int x, int y, int flags, void* userdata) {
                 target = Rect(img_size.width - x-(targetSize /2), img_size.height - y-(targetSize /2), targetSize, targetSize);
             }
         }
-        //cout << "Mouse clicked at: " << x << ", " << y << endl;
-        //Check for right click
+        //If a right click event is captured:
     } else if (event == EVENT_RBUTTONDOWN) {
         //Flip the live targeting boolean.
         liveTargeting = !liveTargeting;
@@ -360,15 +373,18 @@ int main(int argc, char** argv)
                 for (int j = 0; j < targetSize; j++) {
                     //Get the pixel at i, j
                     targetColour = targetArray.at<ushort>(Point(i, j));
-                    //Add the value of said pixel to colour sum.
+                    //If the pixel contains no data (Either 0 or 65520.0(Max value)) then
+                    //don't add to the colourSum + add to wrongCount.
                     if (targetColour[0] == 65520.0 || targetColour[0] == 0.0) {
                         wrongCount++;
                     } else {
+                        //Otherwise add the value of said pixel to colour sum.
                         colourSum += targetColour[0];
                     }
                 }
             }
 
+            //If not all pixels are ignored divide by count of unignored pixels.
             if (wrongCount != pow(targetSize, 2)) {
                 colourSum = colourSum / (pow(targetSize, 2) - wrongCount);
             } else {
@@ -376,6 +392,7 @@ int main(int argc, char** argv)
             }
 
             //Finds the average of the last 10 colourSums for a more consistent result.
+            //Then finds the average of the last 10 averages for a result accurate to 100 results.
             if (averaging) {
                 //Set cyclic buffer[cyclicBufferIndex] to colourSum
                 cyclicBuffer[cyclicBufferIndex] = colourSum;
@@ -385,8 +402,6 @@ int main(int argc, char** argv)
                 //Only calculate the average when the buffer has filled with fresh values,
                 // which is when the index loops back to '0'
                 if(cyclicBufferIndex == 0){
-                    // cout<< "---------------------------Average Buffer Ready" << endl;
-
                     //----Calculate the average of the buffer:
                     //Loop through the buffer array to get the average.
                     for (int i = 0; i < CYCLIC_BUFFER_SIZE; i++) {
@@ -400,6 +415,7 @@ int main(int argc, char** argv)
                     //Increment the index in a cyclical manner
                     cyclicBuffer2Index = (cyclicBuffer2Index + 1) % CYCLIC_BUFFER_SIZE;
 
+                    //If full loop of buffer has new data, print to console.
                     if(cyclicBuffer2Index == 0){
                         cout<< "---------------------------Average-Average Buffer Ready---------------------------" << endl;
                     }
@@ -417,17 +433,17 @@ int main(int argc, char** argv)
                 cyclicBufferSum = 0;
                 cyclicBuffer2Sum = 0;
 
+                //If averaging, put the value into cyclicBuffer2Average
                 colourValue = cyclicBuffer2Average;
             } else {
+                //Else, put live value into colourSum
                 colourValue = colourSum;
             }
 
-            //Calculate the Distance:
-            //Put the value into distanceValue for printing to the window.
+            //Put colourValue into the Distance equation, then store that in distance value.
             distanceValue = DistanceEquation(colourValue);
-            cout << "Brightness: " << colourValue << ", Distance: " << distanceValue << endl;
+            //Set distance string to include the distanceValue
             distanceString = to_string((int)distanceValue) + "mm";
-
 
             //disp8 needs to be flipped before it can be shown.
             flip(disp8, disp8, -1);
@@ -451,15 +467,22 @@ int main(int argc, char** argv)
             //Instructions for opening the help dialog
             putText(disp8, "Please press 'h' to", cvPoint(420, 400), FONT_HERSHEY_DUPLEX, 0.6, Scalar::all(255), 0, 0, false);
             putText(disp8, "open the help dialog.", cvPoint(410, 420), FONT_HERSHEY_DUPLEX, 0.6, Scalar::all(255), 0, 0, false);
+
+            //If liveTargeting, display the target next to the liveTarget status text.
             if (liveTargeting) {
                 //Flip the targetArray for correct display orientation
                 flip(targetArray, targetArray, -1);
+                //Display the target at point 565, 145 of disp8.
                 targetArray.copyTo(disp8(Rect(565, 145, targetArray.cols, targetArray.rows)));
             }
+
+            //Show the 8-bit live disparity window
             imshow("disparity", disp8);
 
             //Exit the disparity loop on a key press of 'q'
             char key = waitKey(30);
+
+            //Hotkeys for program functionality.
             if (key=='q') {
                 break;
             } else if (key =='a') { // 'a' hotkey to enable or disable averaging.
@@ -467,19 +490,19 @@ int main(int argc, char** argv)
                 //We call HelpDialog to update the help panel
                 //with the correct enable/disable string.
                 HelpDialog();
-            } else if (key ==',') {
+            } else if (key ==',') { //Decrease targetSize
                 targetSizeChanged = true;
                 targetSize--;
-            } else if (key =='.') {
+            } else if (key =='.') { //Increase targetSize
                 targetSizeChanged = true;
                 targetSize++;
-            } else if (key == 'd') {
+            } else if (key == 'd') { //Reset targetSize to defaults
                 targetSizeChanged = true;
                 targetSize = DEFAULT_TARGET_SIZE;
-            } else if (key == 'h') {
+            } else if (key == 'h') { //Toggle help dialog
                 showHelp = !showHelp;
                 HelpDialog();
-            } else if (key == 'f') {
+            } else if (key == 'f') { //Flush cyclic buffers.
                 for (int i = 0; i < CYCLIC_BUFFER_SIZE; i++) {
                     cyclicBuffer[i] = 0;
                     cyclicBuffer2[i] = 0;
