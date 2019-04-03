@@ -104,7 +104,7 @@ int main(int argc, char *argv[])
     const Mat OWLresult;// correlation result passed back from matchtemplate
     Mat Frame;
     Mat Left, Right, OWLtempl; // images
-    Mat PanView = Mat(1600, 2500, CV_8UC3, Scalar(0,0,0)); //init as black - ie. no data
+    Mat PanView = Mat(1600, 2500, CV_8UC3, Scalar(0, 0, 0)); //init as black - ie. no data
     Mat familiar = Mat(1600, 2500, CV_8U, double(255));
     
     //Video stream source
@@ -167,7 +167,7 @@ int main(int argc, char *argv[])
     CMDstream.clear();
     CMDstream << Rx << " " << Ry << " " << Lx << " " << Ly << " " << Neck;
     CMD = CMDstream.str();
-    string RxPacket = OwlSendPacket (u_sock, CMD.c_str());
+    string RxPacket = OwlSendPacket(u_sock, CMD.c_str());
     
     //========================================Open Video Steam========================================
     VideoCapture cap(source);
@@ -176,11 +176,11 @@ int main(int argc, char *argv[])
         return -1;
     }
     
-    while (1)
+    while(1)
     {//Main processing loop
-        //cout<<"Capture Frame"<<endl;
+        //cout << "Capture Frame" << endl;
         //==========================================Capture Frame============================================
-        //for(int f=0;f<15;++f){
+        //for(int f = 0; f < 15; ++f){
         if (!cap.read(Frame)) {
             cout << "Could not open the input video: " << source << endl;
         }
@@ -189,11 +189,11 @@ int main(int argc, char *argv[])
         Mat FrameFlpd;
         cv::flip(Frame, FrameFlpd, 1);     // Note that Left/Right are reversed now
         // Split into LEFT and RIGHT images from the stereo pair sent as one MJPEG iamge
-        Left = FrameFlpd(Rect(0, 0, 640, 480));         // using a rectangle
-        remap(Left, Left, map1L, map2L, INTER_LINEAR);  //Apply camera calibration
-        Right = FrameFlpd(Rect(640, 0, 640, 480));       // using a rectangle
-        remap(Right, Right, map1R, map2R, INTER_LINEAR);//Apply camera calibration
-        Mat LeftGrey;                                   //Make a grey copy of Left
+        Left = FrameFlpd(Rect(0, 0, 640, 480));         // Using a rectangle
+        remap(Left, Left, map1L, map2L, INTER_LINEAR);  // Apply camera calibration
+        Right = FrameFlpd(Rect(640, 0, 640, 480));      // Using a rectangle
+        remap(Right, Right, map1R, map2R, INTER_LINEAR);// Apply camera calibration
+        Mat LeftGrey;                                   // Make a grey copy of Left
         cvtColor(Left, LeftGrey, COLOR_BGR2GRAY);
         
         
@@ -205,11 +205,28 @@ int main(int argc, char *argv[])
         imshow("DoG Low", DoGLow8);
         
         //=====================================Initialise Global Position====================================
-        //cout<<"Globe Pos"<<endl;
+        //cout << "Globe Pos" << endl;
         Point GlobalPos;    // Position of camera view within the range of movement of the OWL
         GlobalPos.x = static_cast<int>(900 + ((-(Neck - NeckC) + (Lx - LxC)) / DEG2PWM) / PX2DEG);
         GlobalPos.y = static_cast<int>(500 + ((Ly - LyC) / DEG2PWM) / PX2DEG);
         
+//        if(GlobalPos.x < 0){
+//           GlobalPos.x = 0;
+//        }
+
+//        if (GlobalPos.y < 0){
+//            GlobalPos.y = 0;
+//        }
+
+//        if(GlobalPos.x > Left.rows - familiar.rows){
+
+//        }
+
+//        if(GlobalPos.y > familiar.cols){
+
+//        }
+
+
         Mat familiarLocal = familiar(Rect(GlobalPos.x, GlobalPos.y, Left.cols, Left.rows));
         //imshow("familiarLocal",familiarLocal);
         
