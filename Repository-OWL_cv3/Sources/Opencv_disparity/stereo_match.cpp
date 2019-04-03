@@ -1,15 +1,7 @@
-/*
- *  stereo_match.cpp
- *  calibration
- *
- *  Created by Victor  Eruhimov on 1/18/10.
- *  Copyright 2010 Argus Corp. All rights reserved.
- *
- */
-
 #include <iostream>
 #include <fstream>
 
+#include "owl-comms.h"
 
 #include "opencv2/calib3d/calib3d.hpp"
 #include "opencv2/imgproc.hpp"
@@ -22,158 +14,214 @@
 using namespace cv;
 using namespace std;
 
-static void print_help()
-{
-    printf("\nDemo stereo matching converting L and R images into disparity and point clouds\n");
-    printf("\nUsage: stereo_match <left_image> <right_image> [--algorithm=bm|sgbm|hh|sgbm3way] [--blocksize=<block_size>]\n"
-           "[--max-disparity=<max_disparity>] [--scale=scale_factor>] [-i=<intrinsic_filename>] [-e=<extrinsic_filename>]\n"
-           "[--no-display] [-o=<disparity_image>] [-p=<point_cloud_file>]\n");
+//Moved to global variables.
+ostringstream CMDstream; // string packet
+string CMD;
+
+//Location of the source video.
+string source = "http://10.0.0.10:8080/stream/video.mjpeg";
+string PiADDR = "10.0.0.10";
+
+//SETUP TCP COMMS
+int PORT=12345;
+SOCKET u_sock;
+
+//Made global to use within all functions.
+Size img_size = {640,480};
+
+//Size of the target (in pixels)
+const uint DEFAULT_TARGET_SIZE = 12;
+//Initialise the targetSize to the default, can be changed later on.
+uint targetSize = DEFAULT_TARGET_SIZE;
+
+//Rectangles must be global.
+Rect target = Rect((img_size.width / 2) - (targetSize /2), (img_size.height / 2) - (targetSize /2), targetSize, targetSize);
+Rect displayTarget = Rect((img_size.width / 2) - (targetSize /2), (img_size.height / 2) - (targetSize /2), targetSize, targetSize);
+
+//Boolean for live targeting
+bool liveTargeting = false;
+
+//Boolean for storing and displaying the distance of the target.
+string distanceString = "";
+//Integer for saving the distance value.
+double distanceValue = 0;
+int colourValue= 0;
+
+//Variables for the cyclic buffer array used for averaging.
+const int CYCLIC_BUFFER_SIZE = 10;
+
+//First cyclic buffer to find average of sums.
+int cyclicBuffer[CYCLIC_BUFFER_SIZE];
+uint cyclicBufferIndex = 0;
+int cyclicBufferSum = 0;
+int cyclicBufferAverage = 0;
+
+//Second cyclic buffer to average the averages.
+int cyclicBuffer2[CYCLIC_BUFFER_SIZE];
+uint cyclicBuffer2Index = 0;
+int cyclicBuffer2Sum = 0;
+int cyclicBuffer2Average = 0;
+
+//A boolean for whether the displayed value should be averaged or live
+bool averaging = false;
+
+//Used to fix position resetting when changing targetSize.
+bool targetSizeChanged = false;
+
+//A form of noise correction - Used to count the amount of pixels that contain no data
+//So they can be accounted for in the averaging.
+int wrongCount = 0;
+
+//A boolean to control when the Help dialog is visible.
+bool showHelp = false;
+
+//Material for displaying the help dialog.
+//Size needs to be changed to accommodate
+//and changes in the lines of text.
+Mat helpMat(Size(850, 285), CV_64FC1);
+
+//Connects to the owl and sends the toe-in data.
+void ConnectAndSend() {
+    //Create new socket to the owl.
+    u_sock = OwlCommsInit ( PORT, PiADDR);
+
+    //Toe-in values.
+    const int Rx=1520 - 20;
+    const int Ry=1450;
+    const int Lx=1540 + 20;
+    const int Ly=1550;
+    const int Neck = 1540;
+
+    //Send the values to the owl.
+    CMDstream.str("");
+    CMDstream.clear();
+    CMDstream << Rx << " " << Ry << " " << Lx << " " << Ly << " " << Neck;
+    cout <<"Sending Data - "<< Rx << " " << Ry << " " << Lx << " " << Ly << " " << Neck << endl;
+    CMD = CMDstream.str();
+#ifdef _WIN32
+    OwlSendPacket (u_sock, CMD.c_str());
+#else
+    OwlSendPacket (clientSock, CMD.c_str());
+#endif
 }
 
-static void saveXYZ(const char* filename, const Mat& mat)
-{
-    const double max_z = 1.0e4;
-    FILE* fp = fopen(filename, "wt");
-    for(int y = 0; y < mat.rows; y++)
-    {
-        for(int x = 0; x < mat.cols; x++)
-        {
-            Vec3f point = mat.at<Vec3f>(y, x);
-            if(fabs(point[2] - max_z) < FLT_EPSILON || fabs(point[2]) > max_z) continue;
-            fprintf(fp, "%f %f %f\n", point[0], point[1], point[2]);
+//Function for Showing the help dialog.
+void HelpDialog() {
+    //If show help is false, break from function.
+    if (!showHelp) {
+        return;
+    } //Otherwise..
+    //Reset the mat before use, incase it has been used before
+    //with a different status on the conditions.
+    helpMat = Mat(Size(850, 335), CV_64FC1);
+    //Write all the helptext here.
+    //50px apart for a new instruction, 30px for seperate lines of the same instruction.
+    putText(helpMat, liveTargeting ? "Right click to disable live targeting." : "Right click to enable live targeting.", cvPoint(10, 30), FONT_HERSHEY_DUPLEX, 0.8, Scalar::all(255), 0, 0, false);
+    putText(helpMat, averaging ? "Use 'a' to disable averaging." : "Press 'a' to enable averaging.", cvPoint(10, 80), FONT_HERSHEY_DUPLEX, 0.8, Scalar::all(255), 0, 0, false);
+    putText(helpMat, "-Averaging takes the last 10 averages and averages", cvPoint(30, 110), FONT_HERSHEY_DUPLEX, 0.8, Scalar::all(255), 0, 0, false);
+    putText(helpMat, "those for a much more consistent result.", cvPoint(30, 140), FONT_HERSHEY_DUPLEX, 0.8, Scalar::all(255), 0, 0, false);
+        putText(helpMat, "Use 'f' to flush the average array buffers.", cvPoint(10, 190), FONT_HERSHEY_DUPLEX, 0.8, Scalar::all(255), 0, 0, false);
+    putText(helpMat, "Use ',' and '.' to increase/decrease the targetSize respectively.", cvPoint(10, 240), FONT_HERSHEY_DUPLEX, 0.8, Scalar::all(255), 0, 0, false);
+    putText(helpMat, "Use 'd' to set target location + size back to defaults.", cvPoint(10, 290), FONT_HERSHEY_DUPLEX, 0.8, Scalar::all(255), 0, 0, false);
+    //Show the Help dialog.
+    imshow("Help", helpMat);
+}
+
+//Used to capture mouse events within the OpenCV window.
+void CallBackFunc(int event, int x, int y, int flags, void* userdata) {
+    //If a left click event is captured:
+    if ( event == EVENT_LBUTTONDOWN) {
+        if (liveTargeting) {
+            //Check to see if target is out of bounds, if it is, reset it.
+            //This prevents crashing for when the target bounds exceed the window.
+            if (x < (targetSize / 2) || x > img_size.width - (targetSize / 2) || y < (targetSize / 2) || y > img_size.height - (targetSize / 2)) {
+                //If we are out of bounds, reset the targets to the centre of the screen.
+                displayTarget = Rect((img_size.width / 2) - (targetSize /2), (img_size.height / 2) - (targetSize /2), targetSize, targetSize);
+                target = Rect((img_size.width / 2) - (targetSize /2), (img_size.height / 2) - (targetSize /2), targetSize, targetSize);
+            } else {
+                //If we are not out of bounds, set the targets to the position of the mouse click.
+                displayTarget = Rect(x-(targetSize /2), y-(targetSize /2), targetSize, targetSize);
+                target = Rect(img_size.width - x-(targetSize /2), img_size.height - y-(targetSize /2), targetSize, targetSize);
+            }
         }
+        //If a right click event is captured:
+    } else if (event == EVENT_RBUTTONDOWN) {
+        //Flip the live targeting boolean.
+        liveTargeting = !liveTargeting;
+        //If live targeting is turned off, reset the target position.
+        if (!liveTargeting) {
+            displayTarget = Rect((img_size.width / 2) - (targetSize /2), (img_size.height / 2) - (targetSize /2), targetSize, targetSize);
+            target = Rect((img_size.width / 2) - (targetSize /2), (img_size.height / 2) - (targetSize /2), targetSize, targetSize);
+        }
+        //We call HelpDialog to update the help panel
+        //with the correct enable/disable string.
+        HelpDialog();
     }
-    fclose(fp);
+}
+
+//Calculate the distance of an object in the disparity window.
+//Based on the brightness, equation taken from LOBF
+double DistanceEquation(int brightness) {
+    // estimate = 324314 * brightness^-0.918
+    double estimate = 324314 * pow(brightness, -0.918);
+    //Apply the correction, gathered from measuring inaccuracies
+    // estimate = 1.0911 - 13.955
+    estimate = (1.0911 * estimate) - 13.955;
+    return estimate;
 }
 
 int main(int argc, char** argv)
 {
-    std::string Left_filename = "";
-    std::string Right_filename = "";
-    std::string intrinsic_filename = "../../Data/intrinsics.yml";
-    std::string extrinsic_filename = "../../Data/extrinsics.yml";
-    std::string disparity_filename = "Disparity.jpg";
-    std::string point_cloud_filename = "PointCloud";
+    ConnectAndSend();
 
-    enum { STEREO_BM=0, STEREO_SGBM=1, STEREO_HH=2, STEREO_VAR=3, STEREO_3WAY=4 };
-    int alg = STEREO_SGBM; //PFC always do SGBM - colour
-    int SADWindowSize, numberOfDisparities;
-    bool no_display;
-    float scale;
+    std::string intrinsic_filename = "../../Data/intrinsics.xml";
+    std::string extrinsic_filename = "../../Data/extrinsics.xml";
 
-    Ptr<StereoBM> bm = StereoBM::create(16,9);
-    Ptr<StereoSGBM> sgbm = StereoSGBM::create(0,16,3);
-    cv::CommandLineParser parser(argc, argv,
-                                 "{@arg1||}{@arg2||}{help h||}{algorithm||}{max-disparity|256|}{blocksize|3|}{no-display||}{scale|1|}{i||}{e||}{o||}{p||}");
-    if(parser.has("help"))
-    {
-        print_help();
-        return 0;
-    }
-    //PFC Left_filename = parser.get<std::string>(0);
-    //PFC Right_filename = parser.get<std::string>(1);
-    if (parser.has("algorithm"))
-    {
-        std::string _alg = parser.get<std::string>("algorithm");
-        alg = _alg == "bm" ? STEREO_BM :
-         _alg == "sgbm" ? STEREO_SGBM :
-         _alg == "hh" ? STEREO_HH :
-         _alg == "var" ? STEREO_VAR :
-         _alg == "sgbm3way" ? STEREO_3WAY : -1;
-    }
-    numberOfDisparities = parser.get<int>("max-disparity");
-    SADWindowSize = parser.get<int>("blocksize");
-    scale = parser.get<float>("scale");
-    no_display = parser.has("no-display");
-    if( parser.has("i") )
-        intrinsic_filename = parser.get<std::string>("i");
-    if( parser.has("e") )
-        extrinsic_filename = parser.get<std::string>("e");
-    if( parser.has("o") )
-        disparity_filename = parser.get<std::string>("o");
-    if( parser.has("p") )
-        point_cloud_filename = parser.get<std::string>("p");
-    if (!parser.check())
-    {
-        parser.printErrors();
-        return 1;
-    }
-    if( alg < 0 )
-    {
-        printf("Command-line parameter error: Unknown stereo algorithm\n\n");
-        print_help();
-        return -1;
-    }
-    if ( numberOfDisparities < 1 || numberOfDisparities % 16 != 0 )
+    enum { STEREO_BM = 0, STEREO_SGBM = 1, STEREO_HH = 2, STEREO_VAR = 3, STEREO_3WAY = 4 };
+    const int ALGORITHM = STEREO_SGBM; //PFC always do SGBM - colour
+    //N-disparities and block size referenced in the lecture.
+    const int NO_OF_DISP = 256; //256 is default.
+    const int SAD_BLOCK_SIZE = 5; //3 is default.
+    const bool IS_DISPLAY = false;
+    const float SCALE_FACTOR = 1.0;
+    const int COLOUR_MODE = ALGORITHM == STEREO_BM ? 0 : -1;
+
+    int colourSum = 0;
+
+    Ptr<StereoBM> bm = StereoBM::create(16, 9);
+    Ptr<StereoSGBM> sgbm = StereoSGBM::create(0, 16, 3);
+
+    if ( NO_OF_DISP < 1 || NO_OF_DISP % 16 != 0 )
     {
         printf("Command-line parameter error: The max disparity (--maxdisparity=<...>) must be a positive integer divisible by 16\n");
-        print_help();
         return -1;
     }
-    if (scale < 0)
+    if (SCALE_FACTOR < 0)
     {
-        printf("Command-line parameter error: The scale factor (--scale=<...>) must be a positive floating-point number\n");
+        printf("Error: The scale factor variable must be a positive floating-point number\n");
         return -1;
     }
-    if (SADWindowSize < 1 || SADWindowSize % 2 != 1)
+    if (SAD_BLOCK_SIZE < 1 || SAD_BLOCK_SIZE % 2 != 1)
     {
-        printf("Command-line parameter error: The block size (--blocksize=<...>) must be a positive odd number\n");
-        return -1;
-    }
-/*PFC    if( Left_filename.empty() || Right_filename.empty() )
-    {
-        printf("Command-line parameter error: both left and right images must be specified\n");
-        return -1;
-    }
-    */
-    if( (!intrinsic_filename.empty()) ^ (!extrinsic_filename.empty()) )
-    {
-        printf("Command-line parameter error: either both intrinsic and extrinsic parameters must be specified, or none of them (when the stereo pair is already rectified)\n");
+        printf("Error: The block size variable must be a positive odd number\n");
         return -1;
     }
 
-    if( extrinsic_filename.empty() && !point_cloud_filename.empty() )
+    if ((!intrinsic_filename.empty()) ^ (!extrinsic_filename.empty()))
     {
-        printf("Command-line parameter error: extrinsic and intrinsic parameters must be specified to compute the point cloud\n");
+        printf("Error: either both intrinsic and extrinsic parameters must be specified, or none of them (when the stereo pair is already rectified)\n");
         return -1;
     }
 
-    int color_mode = alg == STEREO_BM ? 0 : -1;
-/* PFC
-    Mat Left = imread(Left_filename, color_mode);
-    Mat Right = imread(Right_filename, color_mode);
-
-    if (Left.empty())
-    {
-        printf("Command-line parameter error: could not load the first input image file\n");
-        return -1;
-    }
-    if (Right.empty())
-    {
-        printf("Command-line parameter error: could not load the second input image file\n");
-        return -1;
-    }
-
-    if (scale != 1.f)
-    {
-        Mat temp1, temp2;
-        int method = scale < 1 ? INTER_AREA : INTER_CUBIC;
-        resize(Left, temp1, Size(), scale, scale, method);
-        Left = temp1;
-        resize(Right, temp2, Size(), scale, scale, method);
-        Right = temp2;
-    }
-*/
-    Size img_size = {640,480} ; //***PFC BUG fixed was {480,640}; //PFC default to VGA res. always with video feed  was -->//Left.size();
 
     Rect roi1, roi2;
     Mat Q;
 
-    if( !intrinsic_filename.empty() )
+    if (!intrinsic_filename.empty())
     {
         // reading intrinsic parameters
         FileStorage fs(intrinsic_filename, FileStorage::READ);
-        if(!fs.isOpened()){
+        if (!fs.isOpened()){
             printf("Failed to open file %s\n", intrinsic_filename.c_str());
             return -1;
         }
@@ -184,11 +232,11 @@ int main(int argc, char** argv)
         fs["M2"] >> M2;
         fs["D2"] >> D2;
 
-        M1 *= scale;
-        M2 *= scale;
+        M1 *= SCALE_FACTOR;
+        M2 *= SCALE_FACTOR;
 
         fs.open(extrinsic_filename, FileStorage::READ);
-        if(!fs.isOpened())
+        if (!fs.isOpened())
         {
             printf("Failed to open file %s\n", extrinsic_filename.c_str());
             return -1;
@@ -214,26 +262,34 @@ int main(int argc, char** argv)
             return -1;
         }
         //Rect region_of_interest = Rect(x, y, w, h);
-        bool inLOOP=true;
-        cv::Mat Frame,Left,Right;
+        bool inLOOP = true;
+        cv::Mat Frame, Left, Right;
         cv::Mat disp, disp8;
 
+        //Creating a material for the target.
+        Mat targetArray;
+        //A scalar for the grey value of the current target pixel to be stored in.
+        Scalar targetColour;
 
         while (inLOOP){
             if (!cap.read(Frame))
             {
                 cout  << "Could not open the input video: " << source << endl;
-                //         break;
+                break;
             }
-            // Mat FrameFlpd; cv::flip(Frame,FrameFlpd,1); // Note that Left/Right are reversed now
-            //Mat Gray; cv::cvtColor(Frame, Gray, cv::COLOR_BGR2GRAY);
             // Split into LEFT and RIGHT images from the stereo pair sent as one MJPEG iamge
-            Right= Frame( Rect(0, 0, 640, 480)); // using a rectangle
-            Left= Frame( Rect(640, 0, 640, 480)); // using a rectangle
-            //DEBUG imshow("Left",Left);imshow("Right", Right);
-            //waitKey(30); // display the images
+            Right= Frame(Rect(0, 0, img_size.width, img_size.height));
+            Left= Frame(Rect(img_size.width, 0, img_size.width, img_size.height));
 
+            //Put into an if statement to reduce performance hit by only updating rectangles
+            //Only if the size has been changed.
+            if (targetSizeChanged) {
+                //Update rectangles.
+                target = Rect(target.x, target.y, targetSize, targetSize);
+                displayTarget = Rect(displayTarget.x, displayTarget.y, targetSize, targetSize);
 
+                targetSizeChanged = false;
+            }
 
             Mat Leftr, Rightr;
             remap(Left, Leftr, map11, map12, INTER_LINEAR);
@@ -242,15 +298,12 @@ int main(int argc, char** argv)
             Left = Leftr;
             Right = Rightr;
 
-
-            numberOfDisparities = numberOfDisparities > 0 ? numberOfDisparities : ((img_size.width/8) + 15) & -16;
-
             bm->setROI1(roi1);
             bm->setROI2(roi2);
             bm->setPreFilterCap(31);
-            bm->setBlockSize(SADWindowSize > 0 ? SADWindowSize : 9);
+            bm->setBlockSize(SAD_BLOCK_SIZE);
             bm->setMinDisparity(0);
-            bm->setNumDisparities(numberOfDisparities);
+            bm->setNumDisparities(NO_OF_DISP);
             bm->setTextureThreshold(10);
             bm->setUniquenessRatio(15);
             bm->setSpeckleWindowSize(100);
@@ -258,72 +311,214 @@ int main(int argc, char** argv)
             bm->setDisp12MaxDiff(1);
 
             sgbm->setPreFilterCap(63);
-            int sgbmWinSize = SADWindowSize > 0 ? SADWindowSize : 3;
+            int sgbmWinSize = SAD_BLOCK_SIZE > 0 ? SAD_BLOCK_SIZE : 3;
             sgbm->setBlockSize(sgbmWinSize);
 
             int cn = Left.channels();
 
-            sgbm->setP1(8*cn*sgbmWinSize*sgbmWinSize);
-            sgbm->setP2(32*cn*sgbmWinSize*sgbmWinSize);
+            sgbm->setP1(8 * cn * sgbmWinSize * sgbmWinSize);
+            sgbm->setP2(32 * cn * sgbmWinSize * sgbmWinSize);
             sgbm->setMinDisparity(0);
-            sgbm->setNumDisparities(numberOfDisparities);
+            sgbm->setNumDisparities(NO_OF_DISP);
             sgbm->setUniquenessRatio(10);
             sgbm->setSpeckleWindowSize(100);
             sgbm->setSpeckleRange(32);
             sgbm->setDisp12MaxDiff(1);
-            if(alg==STEREO_HH)
+            if (ALGORITHM == STEREO_HH)
                 sgbm->setMode(StereoSGBM::MODE_HH);
-            else if(alg==STEREO_SGBM)
+            else if(ALGORITHM == STEREO_SGBM)
                 sgbm->setMode(StereoSGBM::MODE_SGBM);
-            else if(alg==STEREO_3WAY)
+            else if(ALGORITHM == STEREO_3WAY)
                 sgbm->setMode(StereoSGBM::MODE_SGBM_3WAY);
 
-            //Mat Leftp, Rightp, dispp;
-            //copyMakeBorder(Left, Leftp, 0, 0, numberOfDisparities, 0, IPL_BORDER_REPLICATE);
-            //copyMakeBorder(Right, Rightp, 0, 0, numberOfDisparities, 0, IPL_BORDER_REPLICATE);
 
-            int64 t = getTickCount();
-            if( alg == STEREO_BM )
+            // int64 t = getTickCount();
+            if (ALGORITHM == STEREO_BM)
                 bm->compute(Left, Right, disp);
-            else if( alg == STEREO_SGBM || alg == STEREO_HH || alg == STEREO_3WAY )
+            else if( ALGORITHM == STEREO_SGBM || ALGORITHM == STEREO_HH || ALGORITHM == STEREO_3WAY )
                 sgbm->compute(Left, Right, disp);
-            t = getTickCount() - t;
-            printf("Time elapsed: %fms\n", t*1000/getTickFrequency());
+            // t = getTickCount() - t;
+            //calculates the time elapsed for calculation
+            // printf("Time elapsed: %fms\n", t * 1000 / getTickFrequency());
 
-            //disp = dispp.colRange(numberOfDisparities, Leftp.cols);
-            if( alg != STEREO_VAR )
-                disp.convertTo(disp8, CV_8U, 255/(numberOfDisparities*16.));
-            else
+
+            if (ALGORITHM != STEREO_VAR) {
+                disp.convertTo(disp8, CV_8U, 255 / (NO_OF_DISP * 16.0));
+            } else {
                 disp.convertTo(disp8, CV_8U);
-            if( true )
-            {
-                //namedWindow("left", 1);
-                imshow("left", Left);
-                //namedWindow("right", 1);
-                imshow("right", Right);
-                //namedWindow("disparity", 0);
-                imshow("disparity", disp8);
-                //printf("press any key to continue...");
-                //fflush(stdout);
-                char key=waitKey(30);
-                if (key=='q') break;
-                //printf("\n");
+            }
+
+            //----------Displaying windows stuff--------------
+
+            //Flipping all of the frames on the x axis before displaying.
+            flip(Left, Left, -1);
+            flip(Right, Right, -1);
+            imshow("left", Left);
+            imshow("right", Right);
+
+            //Check for mouse clicks on disparity window before any calculations.
+            setMouseCallback("disparity", CallBackFunc, NULL);
+
+            //Calculations for distance begin here.
+            //Grab target here.
+            disp(target).copyTo(targetArray);
+
+            //Reset colour sum before use.
+            colourSum = 0;
+
+            //Reset wrongCount before use.
+            wrongCount = 0;
+            //Loop through every pixel on target.
+            for (int i = 0; i < targetSize; i++) {
+                for (int j = 0; j < targetSize; j++) {
+                    //Get the pixel at i, j
+                    targetColour = targetArray.at<ushort>(Point(i, j));
+                    //If the pixel contains no data (Either 0 or 65520.0(Max value)) then
+                    //don't add to the colourSum + add to wrongCount.
+                    if (targetColour[0] == 65520.0 || targetColour[0] == 0.0) {
+                        wrongCount++;
+                    } else {
+                        //Otherwise add the value of said pixel to colour sum.
+                        colourSum += targetColour[0];
+                    }
+                }
+            }
+
+            //If not all pixels are ignored divide by count of unignored pixels.
+            if (wrongCount != pow(targetSize, 2)) {
+                colourSum = colourSum / (pow(targetSize, 2) - wrongCount);
+            } else {
+                colourSum = colourSum / pow(targetSize, 2);
+            }
+
+            //Finds the average of the last 10 colourSums for a more consistent result.
+            //Then finds the average of the last 10 averages for a result accurate to 100 results.
+            if (averaging) {
+                //Set cyclic buffer[cyclicBufferIndex] to colourSum
+                cyclicBuffer[cyclicBufferIndex] = colourSum;
+                //Increment the index in a cyclical manner
+                cyclicBufferIndex = (cyclicBufferIndex + 1) % CYCLIC_BUFFER_SIZE;
+
+                //Only calculate the average when the buffer has filled with fresh values,
+                // which is when the index loops back to '0'
+                if(cyclicBufferIndex == 0){
+                    //----Calculate the average of the buffer:
+                    //Loop through the buffer array to get the average.
+                    for (int i = 0; i < CYCLIC_BUFFER_SIZE; i++) {
+                        cyclicBufferSum += cyclicBuffer[i];
+                    }
+                    //Once all of the elements have been summed, divide by the buffer size (10)
+                    cyclicBufferAverage = cyclicBufferSum / CYCLIC_BUFFER_SIZE;
+
+                    //Then put that average in the average-average buffer
+                    cyclicBuffer2[cyclicBuffer2Index] = cyclicBufferAverage;
+                    //Increment the index in a cyclical manner
+                    cyclicBuffer2Index = (cyclicBuffer2Index + 1) % CYCLIC_BUFFER_SIZE;
+
+                    //If full loop of buffer has new data, print to console.
+                    if(cyclicBuffer2Index == 0){
+                        cout<< "---------------------------Average-Average Buffer Ready---------------------------" << endl;
+                    }
+                }//end if fresh average
+
+                //Loop through the Average -Average buffer to get the average of the averages.
+                for (int i = 0; i < CYCLIC_BUFFER_SIZE; i++) {
+                    cyclicBuffer2Sum += cyclicBuffer2[i];
+                }
+
+                //Once all of the elements have been summed, divide by the buffer size (10)
+                cyclicBuffer2Average = cyclicBuffer2Sum / CYCLIC_BUFFER_SIZE;
+
+                //Reset the buffer sum for use on next loop.
+                cyclicBufferSum = 0;
+                cyclicBuffer2Sum = 0;
+
+                //If averaging, put the value into cyclicBuffer2Average
+                colourValue = cyclicBuffer2Average;
+            } else {
+                //Else, put live value into colourSum
+                colourValue = colourSum;
+            }
+
+            //Put colourValue into the Distance equation, then store that in distance value.
+            distanceValue = DistanceEquation(colourValue);
+            //Set distance string to include the distanceValue
+            distanceString = to_string((int)distanceValue) + "mm";
+
+            //disp8 needs to be flipped before it can be shown.
+            flip(disp8, disp8, -1);
+
+            //Show target on disparity frame.
+            rectangle(disp8, displayTarget, Scalar::all(255), 1, 8, 0);
+            //Write on disparity window.
+            //Writing distances
+            putText(disp8, "Distance:", cvPoint(445, 50), FONT_HERSHEY_DUPLEX, 1, Scalar::all(255), 0, 0, false);
+            putText(disp8, distanceString, cvPoint(470, 80), FONT_HERSHEY_DUPLEX, 1, Scalar::all(255), 0, 0, false);
+            //Writing liveTargeting status
+            putText(disp8, "Live Targeting:", cvPoint(390, 130), FONT_HERSHEY_DUPLEX, 1, Scalar::all(255), 0, 0, false);
+            putText(disp8, liveTargeting ? "True" : "False", cvPoint(475, 160), FONT_HERSHEY_DUPLEX, 1, Scalar::all(255), 0, 0, false);
+            //Write averaging status to screen.
+            putText(disp8, "Averaging:", cvPoint(430, 210), FONT_HERSHEY_DUPLEX, 1, Scalar::all(255), 0, 0, false);
+            putText(disp8, averaging ? "True" : "False", cvPoint(475, 240), FONT_HERSHEY_DUPLEX, 1, Scalar::all(255), 0, 0, false);
+            //Write targetSize to screen
+            putText(disp8, "targetSize:", cvPoint(430, 290), FONT_HERSHEY_DUPLEX, 1, Scalar::all(255), 0, 0, false);
+            putText(disp8, to_string(targetSize), cvPoint(495, 320), FONT_HERSHEY_DUPLEX, 1, Scalar::all(255), 0, 0, false);
+
+            //Instructions for opening the help dialog
+            putText(disp8, "Please press 'h' to", cvPoint(420, 400), FONT_HERSHEY_DUPLEX, 0.6, Scalar::all(255), 0, 0, false);
+            putText(disp8, "open the help dialog.", cvPoint(410, 420), FONT_HERSHEY_DUPLEX, 0.6, Scalar::all(255), 0, 0, false);
+
+            //If liveTargeting, display the target next to the liveTarget status text.
+            if (liveTargeting) {
+                //Flip the targetArray for correct display orientation
+                flip(targetArray, targetArray, -1);
+                //Display the target at point 565, 145 of disp8.
+                targetArray.copyTo(disp8(Rect(565, 145, targetArray.cols, targetArray.rows)));
+            }
+
+            //Show the 8-bit live disparity window
+            imshow("disparity", disp8);
+
+            //Exit the disparity loop on a key press of 'q'
+            char key = waitKey(30);
+
+            //Hotkeys for program functionality.
+            if (key=='q') {
+                break;
+            } else if (key =='a') { // 'a' hotkey to enable or disable averaging.
+                averaging = !averaging;
+                //We call HelpDialog to update the help panel
+                //with the correct enable/disable string.
+                HelpDialog();
+            } else if (key ==',') { //Decrease targetSize
+                targetSizeChanged = true;
+                targetSize--;
+            } else if (key =='.') { //Increase targetSize
+                targetSizeChanged = true;
+                targetSize++;
+            } else if (key == 'd') { //Reset targetSize to defaults
+                targetSizeChanged = true;
+                targetSize = DEFAULT_TARGET_SIZE;
+            } else if (key == 'h') { //Toggle help dialog
+                showHelp = !showHelp;
+                HelpDialog();
+            } else if (key == 'f') { //Flush cyclic buffers.
+                for (int i = 0; i < CYCLIC_BUFFER_SIZE; i++) {
+                    cyclicBuffer[i] = 0;
+                    cyclicBuffer2[i] = 0;
+                }
+                cyclicBufferIndex = 0;
+                cyclicBuffer2Index = 0;
+
+                cout << "Flushed buffers!" << endl;
             }
         } // end video loop
-
-        if(!disparity_filename.empty())
-            imwrite(disparity_filename, disp8);
-
-        if(!point_cloud_filename.empty())
-        {
-            printf("storing the point cloud...");
-            fflush(stdout);
-            Mat xyz;
-            reprojectImageTo3D(disp, xyz, Q, true);
-            saveXYZ(point_cloud_filename.c_str(), xyz);
-            printf("\n");
-        }
     } // end got intrinsics IF
-
+#ifdef _WIN32
+    cout << "Closing Socket" << endl;
+    closesocket(u_sock);
+#else
+    close(clientSock);
+#endif
     return 0;
 }

@@ -59,8 +59,7 @@ static int print_help()
 }
 
 
-static void
-StereoCalib(const vector<string>& imagelist, Size boardSize, float squareSize, bool displayCorners = false, bool useCalibrated=true, bool showRectified=true)
+static void StereoCalib(const vector<string>& imagelist, Size boardSize, float squareSize, bool displayCorners = false, bool useCalibrated=true, bool showRectified=true)
 {
     if( imagelist.size() % 2 != 0 )
     {
@@ -106,7 +105,7 @@ StereoCalib(const vector<string>& imagelist, Size boardSize, float squareSize, b
                 else
                     resize(img, timg, Size(), scale, scale);
                 found = findChessboardCorners(timg, boardSize, corners,
-                    CALIB_CB_ADAPTIVE_THRESH | CALIB_CB_NORMALIZE_IMAGE);
+                                              CALIB_CB_ADAPTIVE_THRESH | CALIB_CB_NORMALIZE_IMAGE);
                 if( found )
                 {
                     if( scale > 1 )
@@ -146,6 +145,10 @@ StereoCalib(const vector<string>& imagelist, Size boardSize, float squareSize, b
         }
     }
     cout << j << " pairs have been successfully detected.\n";
+    for (int imageIndex = 0; imageIndex < goodImageList.size(); imageIndex++)
+    {
+        cout << goodImageList[imageIndex] << endl;
+    }
     nimages = j;
     if( nimages < 2 )
     {
@@ -172,23 +175,23 @@ StereoCalib(const vector<string>& imagelist, Size boardSize, float squareSize, b
     Mat R, T, E, F;
 
     double rms = stereoCalibrate(objectPoints, imagePoints[0], imagePoints[1],
-                    cameraMatrix[0], distCoeffs[0],
-                    cameraMatrix[1], distCoeffs[1],
-                    imageSize, R, T, E, F,
-                    CALIB_FIX_ASPECT_RATIO +
-                    CALIB_ZERO_TANGENT_DIST +
-                    CALIB_USE_INTRINSIC_GUESS +
-                    CALIB_SAME_FOCAL_LENGTH +
-                    CALIB_RATIONAL_MODEL +
-                    CALIB_FIX_K3 + CALIB_FIX_K4 + CALIB_FIX_K5,
-                    TermCriteria(TermCriteria::COUNT+TermCriteria::EPS, 100, 1e-5) );
+            cameraMatrix[0], distCoeffs[0],
+            cameraMatrix[1], distCoeffs[1],
+            imageSize, R, T, E, F,
+            CALIB_FIX_ASPECT_RATIO +
+            CALIB_ZERO_TANGENT_DIST +
+            CALIB_USE_INTRINSIC_GUESS +
+            CALIB_SAME_FOCAL_LENGTH +
+            CALIB_RATIONAL_MODEL +
+            CALIB_FIX_K3 + CALIB_FIX_K4 + CALIB_FIX_K5,
+            TermCriteria(TermCriteria::COUNT+TermCriteria::EPS, 100, 1e-5) );
     cout << "done with RMS error=" << rms << endl;
 
-// CALIBRATION QUALITY CHECK
-// because the output fundamental matrix implicitly
-// includes all the output information,
-// we can check the quality of calibration using the
-// epipolar geometry constraint: m2^t*F*m1=0
+    // CALIBRATION QUALITY CHECK
+    // because the output fundamental matrix implicitly
+    // includes all the output information,
+    // we can check the quality of calibration using the
+    // epipolar geometry constraint: m2^t*F*m1=0
     double err = 0;
     int npoints = 0;
     vector<Vec3f> lines[2];
@@ -205,9 +208,9 @@ StereoCalib(const vector<string>& imagelist, Size boardSize, float squareSize, b
         for( j = 0; j < npt; j++ )
         {
             double errij = fabs(imagePoints[0][i][j].x*lines[1][j][0] +
-                                imagePoints[0][i][j].y*lines[1][j][1] + lines[1][j][2]) +
-                           fabs(imagePoints[1][i][j].x*lines[0][j][0] +
-                                imagePoints[1][i][j].y*lines[0][j][1] + lines[0][j][2]);
+                    imagePoints[0][i][j].y*lines[1][j][1] + lines[1][j][2]) +
+                    fabs(imagePoints[1][i][j].x*lines[0][j][0] +
+                    imagePoints[1][i][j].y*lines[0][j][1] + lines[0][j][2]);
             err += errij;
         }
         npoints += npt;
@@ -220,7 +223,7 @@ StereoCalib(const vector<string>& imagelist, Size boardSize, float squareSize, b
     if( fs.isOpened() )
     {
         fs << "M1" << cameraMatrix[0] << "D1" << distCoeffs[0] <<
-            "M2" << cameraMatrix[1] << "D2" << distCoeffs[1];
+              "M2" << cameraMatrix[1] << "D2" << distCoeffs[1];
         fs.release();
     }
     else
@@ -230,9 +233,9 @@ StereoCalib(const vector<string>& imagelist, Size boardSize, float squareSize, b
     Rect validRoi[2];
 
     stereoRectify(cameraMatrix[0], distCoeffs[0],
-                  cameraMatrix[1], distCoeffs[1],
-                  imageSize, R, T, R1, R2, P1, P2, Q,
-                  CALIB_ZERO_DISPARITY, 1, imageSize, &validRoi[0], &validRoi[1]);
+            cameraMatrix[1], distCoeffs[1],
+            imageSize, R, T, R1, R2, P1, P2, Q,
+            CALIB_ZERO_DISPARITY, 1, imageSize, &validRoi[0], &validRoi[1]);
     //PFC Saves to local Repo folder
     fs.open("../../Data/extrinsics.xml", FileStorage::WRITE);
     if( fs.isOpened() )
@@ -247,21 +250,21 @@ StereoCalib(const vector<string>& imagelist, Size boardSize, float squareSize, b
     // or up-down camera arrangements
     bool isVerticalStereo = fabs(P2.at<double>(1, 3)) > fabs(P2.at<double>(0, 3));
 
-// COMPUTE AND DISPLAY RECTIFICATION
+    // COMPUTE AND DISPLAY RECTIFICATION
     if( !showRectified )
         return;
 
     Mat rmap[2][2];
-// IF BY CALIBRATED (BOUGUET'S METHOD)
+    // IF BY CALIBRATED (BOUGUET'S METHOD)
     if(useCalibrated )
     {
         // we already computed everything
     }
-// OR ELSE HARTLEY'S METHOD
+    // OR ELSE HARTLEY'S METHOD
     else
- // use intrinsic parameters of each camera, but
- // compute the rectification transformation directly
- // from the fundamental matrix
+        // use intrinsic parameters of each camera, but
+        // compute the rectification transformation directly
+        // from the fundamental matrix
     {
         vector<Point2f> allimgpt[2];
         for( k = 0; k < 2; k++ )
@@ -358,7 +361,7 @@ int main(int argc, char** argv)
     Size boardSize;
     string imagelistfn;
     bool showRectified;
-//PFC    cv::CommandLineParser parser(argc, argv, "{w|9|}{h|6|}{s|1.0|}{nr||}{help||}{@input|../data/stereo_calib.xml|}");
+    //PFC    cv::CommandLineParser parser(argc, argv, "{w|9|}{h|6|}{s|1.0|}{nr||}{help||}{@input|../data/stereo_calib.xml|}");
     cv::CommandLineParser parser(argc, argv, "{w|9|}{h|6|}{s|26.0|}{nr||}{help||}{@input|../../Data/stereo_calib.xml|}");
     if (parser.has("help"))
         return print_help();
