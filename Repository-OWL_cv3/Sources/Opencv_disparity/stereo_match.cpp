@@ -110,7 +110,7 @@ void HelpDialog() {
     putText(helpMat, "-Averaging takes the last 10 averages and averages", cvPoint(30, 110), FONT_HERSHEY_DUPLEX, 0.8, Scalar::all(255), 0, 0, false);
     putText(helpMat, "those for a much more consistent result.", cvPoint(30, 140), FONT_HERSHEY_DUPLEX, 0.8, Scalar::all(255), 0, 0, false);
     putText(helpMat, "Use ',' and '.' to increase/decrease the targetSize respectively.", cvPoint(10, 190), FONT_HERSHEY_DUPLEX, 0.8, Scalar::all(255), 0, 0, false);
-    putText(helpMat, "Use 'd' to set targetSize location + size back to defaults.", cvPoint(10, 240), FONT_HERSHEY_DUPLEX, 0.8, Scalar::all(255), 0, 0, false);
+    putText(helpMat, "Use 'd' to set target location + size back to defaults.", cvPoint(10, 240), FONT_HERSHEY_DUPLEX, 0.8, Scalar::all(255), 0, 0, false);
     imshow("Help", helpMat);
 }
 
@@ -189,7 +189,7 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    if( (!intrinsic_filename.empty()) ^ (!extrinsic_filename.empty()) )
+    if ((!intrinsic_filename.empty()) ^ (!extrinsic_filename.empty()))
     {
         printf("Error: either both intrinsic and extrinsic parameters must be specified, or none of them (when the stereo pair is already rectified)\n");
         return -1;
@@ -199,11 +199,11 @@ int main(int argc, char** argv)
     Rect roi1, roi2;
     Mat Q;
 
-    if( !intrinsic_filename.empty() )
+    if (!intrinsic_filename.empty())
     {
         // reading intrinsic parameters
         FileStorage fs(intrinsic_filename, FileStorage::READ);
-        if(!fs.isOpened()){
+        if (!fs.isOpened()){
             printf("Failed to open file %s\n", intrinsic_filename.c_str());
             return -1;
         }
@@ -218,7 +218,7 @@ int main(int argc, char** argv)
         M2 *= SCALE_FACTOR;
 
         fs.open(extrinsic_filename, FileStorage::READ);
-        if(!fs.isOpened())
+        if (!fs.isOpened())
         {
             printf("Failed to open file %s\n", extrinsic_filename.c_str());
             return -1;
@@ -306,7 +306,7 @@ int main(int argc, char** argv)
             sgbm->setSpeckleWindowSize(100);
             sgbm->setSpeckleRange(32);
             sgbm->setDisp12MaxDiff(1);
-            if(ALGORITHM == STEREO_HH)
+            if (ALGORITHM == STEREO_HH)
                 sgbm->setMode(StereoSGBM::MODE_HH);
             else if(ALGORITHM == STEREO_SGBM)
                 sgbm->setMode(StereoSGBM::MODE_SGBM);
@@ -315,7 +315,7 @@ int main(int argc, char** argv)
 
 
             // int64 t = getTickCount();
-            if( ALGORITHM == STEREO_BM )
+            if (ALGORITHM == STEREO_BM)
                 bm->compute(Left, Right, disp);
             else if( ALGORITHM == STEREO_SGBM || ALGORITHM == STEREO_HH || ALGORITHM == STEREO_3WAY )
                 sgbm->compute(Left, Right, disp);
@@ -324,7 +324,7 @@ int main(int argc, char** argv)
             // printf("Time elapsed: %fms\n", t * 1000 / getTickFrequency());
 
 
-            if( ALGORITHM != STEREO_VAR ) {
+            if (ALGORITHM != STEREO_VAR) {
                 disp.convertTo(disp8, CV_8U, 255 / (NO_OF_DISP * 16.0));
             } else {
                 disp.convertTo(disp8, CV_8U);
