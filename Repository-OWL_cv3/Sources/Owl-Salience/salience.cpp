@@ -341,6 +341,9 @@ int main(int argc, char *argv[])
 
 //====================================================================================//
 // SERVO FUNCTIONS
+
+//Summary:
+//      The absolute values, in degrees, the servos should move to. Also does bound checking.
 string ServoAbs(double DEGRx, double DEGRy, double DEGLx, double DEGLy, double DEGNeck){
     int Rx, Ry, Lx, Ly, Neck;
     //    Rx = static_cast<int>(DEGRx * DEG2PWM) + RxC;
@@ -392,6 +395,9 @@ string ServoAbs(double DEGRx, double DEGRy, double DEGLx, double DEGLy, double D
     return (retSTR);
 }
 
+//Summary:
+//      The servos move by the difference, in degrees, passed in. Also does bound checking.
+//      i.e. If servo is at 5 degrees, and -3 is passed in, the result will be 2.
 string ServoRel(double DEGRx, double DEGRy, double DEGLx, double DEGLy, double DEGNeck){
     //int Rx,Ry,Lx,Ly, Neck;
     Rx = static_cast<int>(DEGRx * DEG2PWM) + Rx;
