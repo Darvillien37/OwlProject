@@ -48,6 +48,9 @@
 #define DEG2PWM 10.98
 #define IPD 67
 
+#define IMAGE_WIDTH 640
+#define IMAGE_HEIGHT 480
+
 #define xOffset  -0.3815
 #define yOffset -54.6682
 #define xScale   26.4842
@@ -86,15 +89,13 @@ int main(int argc, char *argv[])
 {
     //==========================================Initialize Variables=================================
     //Frame Size
-    Size imageSize;
-    imageSize.width = 640;
-    imageSize.height = 480;
+    Size imageSize = Size(IMAGE_WIDTH, IMAGE_HEIGHT);
     
     //Local Feature Map  - implements FOVEA as a bias to the saliency map to central targets, rather than peripheral targets
     // eg. for a primate vision system
-    Mat fovea = Mat(480, 640, CV_8U, double(0));
-    fovea = Mat(480, 640, CV_8U, double(0));
-    circle(fovea, Point(320, 240), 150, 255, -1);
+    Mat fovea = Mat(IMAGE_WIDTH, IMAGE_WIDTH, CV_8U, double(0));
+    //Make a circle in the center of the fovia mat.
+    circle(fovea, Point(IMAGE_WIDTH / 2, IMAGE_HEIGHT / 2), 150, 255, -1);
     cv::blur(fovea, fovea, Size(301,301));
     fovea.convertTo(fovea, CV_32FC1);
     fovea *= foveaWeight;
