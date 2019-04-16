@@ -317,6 +317,8 @@ int main(int argc, char *argv[])
 //            }
 
             Mat LeftCrop = Left(Rect(220, 140, 200, 200));//image cropped to minimize image stitching artifacts
+            OWLtempl = Left(LeftCrop);
+
             LeftCrop.copyTo(PanView(Rect(GlobalPos.x, GlobalPos.y, LeftCrop.cols, LeftCrop.rows)));
             Mat PanViewSmall;
             resize(PanView, PanViewSmall, PanView.size() / 2);
@@ -334,6 +336,10 @@ int main(int argc, char *argv[])
         cvCreateTrackbar("LowFreq", "Control", &DoGLowWeight, 100);
         cvCreateTrackbar("FamiliarW", "Control", &FamiliarWeight, 100);
         cvCreateTrackbar("foveaW", "Control", &foveaWeight, 100);
+
+
+
+        OwlCorrel OWL = Owl_matchTemplate(Right, OWLtempl);
         
         waitKey(10);
     }
@@ -346,13 +352,9 @@ int main(int argc, char *argv[])
 //      The absolute values, in degrees, the servos should move to. Also does bound checking.
 string ServoAbs(double DEGRx, double DEGRy, double DEGLx, double DEGLy, double DEGNeck){
     int Rx, Ry, Lx, Ly, Neck;
-    //    Rx = static_cast<int>(DEGRx * DEG2PWM) + RxC;
-    //    Ry = static_cast<int>(-DEGRy * DEG2PWM) + RyC;
-    //    Lx = static_cast<int>(DEGLx * DEG2PWM) + LxC;
-    //    Ly = static_cast<int>(DEGLy * DEG2PWM) + LyC;
-    //    Neck = static_cast<int>(-DEGNeck * DEG2PWM) + NeckC;
-    Rx = static_cast<int>(DEGRx * DEG2PWM);
-    Ry = static_cast<int>(DEGRy * DEG2PWM);
+
+    //Rx = static_cast<int>(DEGRx * DEG2PWM);
+    //Ry = static_cast<int>(DEGRy * DEG2PWM);
     Lx = static_cast<int>(DEGLx * DEG2PWM);
     Ly = static_cast<int>(DEGLy * DEG2PWM);
     Neck = static_cast<int>(DEGNeck * DEG2PWM);
@@ -400,8 +402,8 @@ string ServoAbs(double DEGRx, double DEGRy, double DEGLx, double DEGLy, double D
 //      i.e. If servo is at 5 degrees, and -3 is passed in, the result will be 2.
 string ServoRel(double DEGRx, double DEGRy, double DEGLx, double DEGLy, double DEGNeck){
     //int Rx,Ry,Lx,Ly, Neck;
-    Rx = static_cast<int>(DEGRx * DEG2PWM) + Rx;
-    Ry = static_cast<int>(-DEGRy * DEG2PWM) + Ry;
+//    Rx = static_cast<int>(DEGRx * DEG2PWM) + Rx;
+//    Ry = static_cast<int>(-DEGRy * DEG2PWM) + Ry;
     Lx = static_cast<int>(DEGLx * DEG2PWM) + Lx;
     Ly = static_cast<int>(DEGLy * DEG2PWM) + Ly;
     Neck = static_cast<int>(-DEGNeck * DEG2PWM) + Neck;
