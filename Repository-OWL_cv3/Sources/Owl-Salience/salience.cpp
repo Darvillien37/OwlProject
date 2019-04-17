@@ -573,8 +573,8 @@ Mat ColourFilter(Mat colourSrc) {
     Mat result;
     Mat workMat;
 
-    double alpha = 2.0;
-    int beta = 2;
+    double alpha = 1.0;
+    int beta = 0;
 
     cvtColor(colourSrc, workMat, CV_BGR2HLS);
 
