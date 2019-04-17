@@ -70,6 +70,7 @@ int OwlCalCapture(cv::VideoCapture &cap, string Folder);
 //void ServoRel(float DEGRx,float DEGRy,float DEGLx,float DEGLy,float DEGNeck);
 Mat DoGFilter(Mat src, int k, int g);
 Mat SobelFilter(Mat src, int scale, int delta);
+Mat CannyFilter(Mat greySrc);
 
 static string PiADDR = "10.0.0.10";
 static int PORT = 12345;
@@ -82,7 +83,8 @@ static string CMD;
 static int ColourWeight = 60; //Saturation and Brightness
 static int DoGHighWeight = 60; //Groups of edges in a small area
 static int DoGLowWeight = 30; //DoG edge detection
-static int SobelWeight = 30; //DoG edge detection
+static int SobelWeight = 30; //Sobel edge detection
+static int CannyWeight = 30; //Canny edge detection.
 static int FamiliarWeight = 5; //Familiarity of the target, how much has the owl focused on this before
 static int foveaWeight = 50; //Distance from fovea (center)
 
@@ -201,19 +203,24 @@ int main(int argc, char *argv[])
         
         // ======================================CALCULATE FEATURE MAPS ====================================
         //============================================DoG low bandpass Map============================================
-        //DoG low calcs
         Mat DoGLow = DoGFilter(LeftGrey, 3, 51);
         Mat DoGLow8;
         normalize(DoGLow, DoGLow8, 0, 255, CV_MINMAX, CV_8U);
         imshow("DoG Low", DoGLow8);
 
-        //Sobel calcs
         // ======================================CALCULATE FEATURE MAPS ====================================
         //============================================Sobel Map============================================
         Mat SobelMap = SobelFilter(LeftGrey, 1, 0);
         Mat SobelMap8;
         normalize(SobelMap, SobelMap8, 0, 255, CV_MINMAX, CV_8U);
         imshow("SobelMap8", SobelMap8);
+
+        // ======================================CALCULATE FEATURE MAPS ====================================
+        //============================================Canny Map============================================
+        Mat CannyMap = CannyFilter(LeftGrey);
+        Mat CannyMap8;
+        normalize(CannyMap, CannyMap8, 0, 255, CV_MINMAX, CV_8U);
+        imshow("CannyMap8", CannyMap8);
         
         //=====================================Initialise Global Position====================================
         //cout << "Globe Pos" << endl;
@@ -240,6 +247,10 @@ int main(int argc, char *argv[])
         SobelMap.convertTo(SobelMap, CV_32FC1);
         SobelMap *= SobelWeight;
 
+        //Conversions for CannyMap
+        CannyMap.convertTo(CannyMap, CV_32FC1);
+        CannyMap *= CannyWeight;
+
         familiarLocal.convertTo(familiarLocal, CV_32FC1);
         
         // Linear combination of feature maps to create a salience map
@@ -248,6 +259,7 @@ int main(int argc, char *argv[])
         add(Salience, DoGLow, Salience);
         add(Salience, fovea, Salience);
         add(Salience, SobelMap, Salience);
+        add(Salience, CannyMap, Salience);
 
         Salience = Salience.mul(familiarLocal);
         normalize(Salience, Salience, 0, 255, CV_MINMAX, CV_32FC1);
@@ -352,6 +364,7 @@ int main(int argc, char *argv[])
         //cout << "Control Window" << endl;
         namedWindow("Control", CV_WINDOW_AUTOSIZE);
         cvCreateTrackbar("DoG Weight", "Control", &DoGLowWeight, 100);
+        cvCreateTrackbar("Canny Weight", "Control", &CannyWeight, 100);
         cvCreateTrackbar("Sobel Weight", "Control", &SobelWeight, 100);
         cvCreateTrackbar("FamiliarW", "Control", &FamiliarWeight, 100);
         cvCreateTrackbar("foveaW", "Control", &foveaWeight, 100);
@@ -530,4 +543,17 @@ Mat SobelFilter(Mat greySrc, int scale, int delta)
     return result;
 }
 
+Mat CannyFilter(Mat greySrc) {
+    Mat result;
+
+    int lowThreshold = 0;
+
+    const int ratio = 3;
+    const int kernelSize = 3;
+
+    blur(greySrc, result, Size(3,3));
+    Canny(result, result, lowThreshold, (lowThreshold * ratio), kernelSize);
+
+    return result;
+}
 
