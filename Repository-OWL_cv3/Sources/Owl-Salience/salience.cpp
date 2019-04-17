@@ -62,7 +62,7 @@ using namespace cv;
 // PFC/JR messy decls, but works under openCV 3.4
 string ServoAbs(double DEGRx, double DEGRy, double DEGLx, double DEGLy, double DEGNeck);
 string ServoRel(double DEGRx, double DEGRy, double DEGLx, double DEGLy, double DEGNeck);
-string TrackCorrelTarget(OwlCorrel OWL);
+string TrackCorrelTarget(OwlCorrel OwlLeft, OwlCorrel OwlRight);
 int OwlCalCapture(cv::VideoCapture &cap, string Folder);
 
 
@@ -244,19 +244,31 @@ int main(int argc, char *argv[])
         double xDifference = static_cast<double>((maxLoc.x - (IMAGE_WIDTH / 2)) * PX2DEG);
         double yDifference = static_cast<double>((maxLoc.y - (IMAGE_HEIGHT / 2)) * PX2DEG);
         
+
+        target = Rect(maxLoc.x - 32, //X pos
+                      maxLoc.y - 32, //Y pos
+                      64, 64);//Height + width
         rectangle(Left,
-                  Point(maxLoc.x - 32, maxLoc.y - 32),
-                  Point(maxLoc.x + 32, maxLoc.y + 32),
+                  target,
                   Scalar::all(255),
                   2, 8, 0); //draw rectangle on most salient area
 
-        // Move left eye based on salience, move right eye to be parallel with left eye
-        ServoRel(((Lx - LxC + RxC - Rx) / DEG2PWM) + xDifference * 1,
-                 -((LyC - Ly + RyC - Ry) / DEG2PWM) + yDifference * 1,
-                 xDifference * 1,
-                 yDifference * 1,
-                 (Lx - LxC) / 100);
+        OWLtempl = Left(target);
+
+        OwlCorrel rightCorrel = Owl_matchTemplate(Right, OWLtempl);
+        OwlCorrel leftCorrel = Owl_matchTemplate(Left, OWLtempl);
+
+        TrackCorrelTarget(leftCorrel, rightCorrel);
+
+//        // Move left eye based on salience, move right eye to be parallel with left eye
+//        ServoRel(((Lx - LxC + RxC - Rx) / DEG2PWM) + xDifference * 1,
+//                 -((LyC - Ly + RyC - Ry) / DEG2PWM) + yDifference * 1,
+//                 xDifference * 1,
+//                 yDifference * 1,
+//                 (Lx - LxC) / 100);
         
+
+
         // Update Familarity Map
         // Familiar map to inhibit salient targets once observed (this is a global map)
         double longitude = (((Ly - LyC) / DEG2PWM) + maxLoc.y * PX2DEG);//calculate longitude as the global map is a spherical projection
@@ -265,9 +277,9 @@ int main(int argc, char *argv[])
         if(longitude > 70) {
             longitude = 70;
         }
-        
+
         Mat familiarNew = familiar.clone();
-        circle(familiarNew, GlobalPos + maxLoc, static_cast<int>(60 / cos(longitude * PI / 180)), 0, -1);
+        circle(familiarNew, GlobalPos + maxLoc, static_cast<int>(60 / cos(longitude * PI / 180)), 0, 1);//This line crashes
         cv::blur(familiarNew, familiarNew, Size(151, 151)); //Blur used to save on processing
         normalize(familiarNew, familiarNew, 0, 255, CV_MINMAX, CV_8U);
         addWeighted(familiarNew,
@@ -278,9 +290,8 @@ int main(int argc, char *argv[])
         
         Mat familiarSmall;
         resize(familiar, familiarSmall, familiar.size() / 4);
-        imshow("Familiar", familiarSmall);
-        //imshow("Right", Right);
-        
+        imshow("Familiar", familiarSmall);        
+
         //=================================Convert Saliency into Heat Map=====================================
         
         Mat SalienceHSVnorm;
@@ -328,7 +339,17 @@ int main(int argc, char *argv[])
         }
         
         resize(Left, Left, Left.size() / 2);
+
+        //Draw a circle in the center of Left/right
+
+        circle(Left,Point(320,240),5,Scalar(0,255,0),1);
+
+        circle(Right,Point(320,240),5,Scalar(0,255,0),1);
+
+
+        imshow("Right", Right);
         imshow("Left", Left);
+
         resize(SalienceHSV, SalienceHSV, SalienceHSV.size() / 2);
         imshow("SalienceHSV", SalienceHSV);
         
@@ -447,7 +468,7 @@ string ServoRel(double DEGRx, double DEGRy, double DEGLx, double DEGLy, double D
     return (retSTR);
 }
 
-string TrackCorrelTarget (OwlCorrel OWL){
+string TrackCorrelTarget (OwlCorrel OwlLeft, OwlCorrel OwlRight){
     ostringstream CMDstream;
     string CMD, RxPacket;
     
@@ -456,17 +477,26 @@ string TrackCorrelTarget (OwlCorrel OWL){
     double KPx = 0.1; // track rate X
     double KPy = 0.1; // track rate Y
     double LxScaleV = LxRangeV / static_cast<double>(640); //PWM range /pixel range
-    double Xoff = 320 - (OWL.Match.x + OWLtempl.cols / 2) / LxScaleV; // compare to centre of image
+    double Xoff = 320 - (OwlLeft.Match.x + OWLtempl.cols / 2) / LxScaleV; // compare to centre of image
     double LxOld = Lx;
     Lx = static_cast<int>(LxOld - Xoff * KPx); // roughly 300 servo offset = 320 [pixel offset]
     
     double LyScaleV = LyRangeV / static_cast<double>(480); //PWM range /pixel range
-    double Yoff = (240 + (OWL.Match.y + OWLtempl.rows / 2) / LyScaleV) * KPy; // compare to centre of image
+    double Yoff = (240 + (OwlLeft.Match.y + OWLtempl.rows / 2) / LyScaleV) * KPy; // compare to centre of image
     double LyOld = Ly;
     Ly = static_cast<int>(Yoff - LyOld); // roughly 300 servo offset = 320 [pixel offset]
     
-    //cout << owl::Lx << " " << Xoff << " " << LxOld << endl; // DEBUG PFC
-    //cout << owl::Ly << " " << Yoff << " " << LyOld << endl;
+
+    double RxScaleV = RxRangeV/static_cast<double>(640); //PWM range /pixel range
+    double RxOff=  (OwlRight.Match.x - 320  + OWLtempl.cols/2)/RxScaleV ; // compare to centre of image
+    double RxOld=Rx;
+    Rx=static_cast<int>(RxOld + RxOff*KPx); // roughly 300 servo offset = 320 [pixel offset]
+
+    double RyScaleV = RyRangeV/static_cast<double>(480); //PWM range /pixel range
+    double RyOff= ((OwlRight.Match.y - 240 + OWLtempl.rows/2) / RyScaleV)*KPy ; // compare to centre of image
+    double RyOld=Ry;
+    Ry=static_cast<int>(RyOld - RyOff); // roughly 300 servo offset = 320 [pixel offset]
+
     
     //** ACTION
     // move to get minimise distance from centre of both images, ie verge in to target
