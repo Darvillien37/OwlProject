@@ -227,6 +227,8 @@ int main(int argc, char *argv[])
         // ======================================CALCULATE FEATURE MAPS ====================================
         //============================================Colour Map============================================
         Mat ColourMap = ColourFilter(Left);
+        Mat ColourMap8;
+        normalize(ColourMap, ColourMap8, 0, 255, CV_MINMAX, CV_8U);
         imshow("ColourMap", ColourMap);
         
         //=====================================Initialise Global Position====================================
@@ -271,7 +273,7 @@ int main(int argc, char *argv[])
         add(Salience, fovea, Salience);
         add(Salience, SobelMap, Salience);
         add(Salience, CannyMap, Salience);
-        add(Salience, ColourMap, Salience);
+        //add(Salience, ColourMap, Salience); //Adding the colour map to the Salience crashes it?
 
         Salience = Salience.mul(familiarLocal);
         normalize(Salience, Salience, 0, 255, CV_MINMAX, CV_32FC1);
@@ -571,17 +573,21 @@ Mat CannyFilter(Mat greySrc) {
 
 Mat ColourFilter(Mat colourSrc) {
     Mat result;
-    Mat workMat;
 
-    double alpha = 1.0;
-    int beta = 0;
+    double alpha = 2.0;
+    int beta = 10;
 
-    cvtColor(colourSrc, workMat, CV_BGR2HLS);
+    //Convert the mat to HSV
+    cvtColor(colourSrc, result, CV_BGR2HSV);
 
-    for (int y = 0; y < workMat.rows; y++) {
-        for (int x = 0; x < workMat.cols; x++) {
-            for (int c = 0; y < workMat.channels(); c++) {
-                result.at<Vec3b>(y, x)[c] = saturate_cast<uchar>(alpha*workMat.at<Vec3b>(y, x)[c] + beta);
+    //Loop through the Mat Going through the y pixels
+    for( int y = 0; y < colourSrc.rows; y++ ) {
+        //Then the x pixels, so we have a pixel at y,x
+        for( int x = 0; x < colourSrc.cols; x++ ) {
+            //Then once at the desired pixel, we loop through the colour channels of the pixel
+            for( int c = 0; c < colourSrc.channels(); c++ ) {
+                //And then we apply the alpha + beta to each of the channels of the chosen pixel.
+                result.at<Vec3b>(y,x)[c] = saturate_cast<uchar>( alpha*result.at<Vec3b>(y,x)[c] + beta );
             }
         }
     }
