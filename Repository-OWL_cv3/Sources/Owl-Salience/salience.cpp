@@ -508,21 +508,17 @@ Mat DoGFilter(Mat src, int k, int g){
     return srcC;
 }
 
-Mat SobelFilter(Mat src, int scale, int delta)
+Mat SobelFilter(Mat greySrc, int scale, int delta)
 {
     //http://docs.opencv.org/3.4.3/d2/d2c/tutorial_sobel_derivatives.html
     Mat result;
-    int ddepth = CV_16S;
-    Mat srcC;
+    int ddepth = CV_16S;    
     Mat grad_x, grad_y;
-    Mat abs_grad_x, abs_grad_y;
-
-    //First convert the source image to grayscale
-    cvtColor(src, srcC, COLOR_BGR2GRAY);
+    Mat abs_grad_x, abs_grad_y;    
 
     //Next calculate derivatives, in x and y direction.
-    Sobel(srcC, grad_x, ddepth, 1, 0, 3, scale, delta, BORDER_DEFAULT);
-    Sobel(srcC, grad_y, ddepth, 0, 1, 3, scale, delta, BORDER_DEFAULT);
+    Sobel(greySrc, grad_x, ddepth, 1, 0, 3, scale, delta, BORDER_DEFAULT);
+    Sobel(greySrc, grad_y, ddepth, 0, 1, 3, scale, delta, BORDER_DEFAULT);
 
     //Convert the partial results back to grayscale.
     convertScaleAbs( grad_x, abs_grad_x );
