@@ -93,7 +93,7 @@ int main(int argc, char *argv[])
     
     //Local Feature Map  - implements FOVEA as a bias to the saliency map to central targets, rather than peripheral targets
     // eg. for a primate vision system
-    Mat fovea = Mat(IMAGE_WIDTH, IMAGE_WIDTH, CV_8U, double(0));
+    Mat fovea = Mat(IMAGE_HEIGHT, IMAGE_WIDTH, CV_8U, double(0));
     //Make a circle in the center of the fovia mat.
     circle(fovea, Point(IMAGE_WIDTH / 2, IMAGE_HEIGHT / 2), 150, 255, -1);
     cv::blur(fovea, fovea, Size(301,301));
@@ -228,7 +228,7 @@ int main(int argc, char *argv[])
         
         // Linear combination of feature maps to create a salience map
         Mat Salience = cv::Mat(Left.size(), CV_32FC1,0.0); // init map
-        
+
         add(Salience, DoGLow, Salience);
         add(Salience, fovea, Salience);
         Salience = Salience.mul(familiarLocal);
@@ -318,7 +318,7 @@ int main(int argc, char *argv[])
 //            }
 
             Mat LeftCrop = Left(Rect(220, 140, 200, 200));//image cropped to minimize image stitching artifacts
-            OWLtempl = Left(LeftCrop);
+            //OWLtempl = Left(LeftCrop);
 
             LeftCrop.copyTo(PanView(Rect(GlobalPos.x, GlobalPos.y, LeftCrop.cols, LeftCrop.rows)));
             Mat PanViewSmall;
@@ -339,8 +339,7 @@ int main(int argc, char *argv[])
         cvCreateTrackbar("foveaW", "Control", &foveaWeight, 100);
 
 
-
-        OwlCorrel OWL = Owl_matchTemplate(Right, OWLtempl);
+        //OwlCorrel OWL = Owl_matchTemplate(Right, OWLtempl);
         
         waitKey(10);
     }
