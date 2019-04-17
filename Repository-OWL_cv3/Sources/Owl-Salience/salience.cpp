@@ -85,7 +85,7 @@ static int DoGHighWeight = 60; //Groups of edges in a small area
 static int DoGLowWeight = 30; //DoG edge detection
 static int SobelWeight = 30; //Sobel edge detection
 static int CannyWeight = 30; //Canny edge detection.
-static int CannyStrength = 10; //Strength of canny detection starts at 10.
+static int CannyStrength = 20; //Strength of canny detection, defaults to 20.
 static int FamiliarWeight = 5; //Familiarity of the target, how much has the owl focused on this before
 static int foveaWeight = 50; //Distance from fovea (center)
 
