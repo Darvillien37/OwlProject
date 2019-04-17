@@ -239,9 +239,10 @@ int main(int argc, char *argv[])
         //=====================================Find & Move to Most Salient Target=========================================
         
         minMaxLoc(Salience, &minVal, &maxVal, &minLoc, &maxLoc, Mat());
+
         // Calculate relative servo correction and magnitude of correction
-        double xDifference = static_cast<double>((maxLoc.x - 320) * PX2DEG);
-        double yDifference = static_cast<double>((maxLoc.y - 240) * PX2DEG);
+        double xDifference = static_cast<double>((maxLoc.x - (IMAGE_WIDTH / 2)) * PX2DEG);
+        double yDifference = static_cast<double>((maxLoc.y - (IMAGE_HEIGHT / 2)) * PX2DEG);
         
         rectangle(Left,
                   Point(maxLoc.x - 32, maxLoc.y - 32),
