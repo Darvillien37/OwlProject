@@ -85,6 +85,7 @@ static int DoGHighWeight = 60; //Groups of edges in a small area
 static int DoGLowWeight = 30; //DoG edge detection
 static int SobelWeight = 30; //Sobel edge detection
 static int CannyWeight = 30; //Canny edge detection.
+static int CannyStrength = 10; //Strength of canny detection starts at 10.
 static int FamiliarWeight = 5; //Familiarity of the target, how much has the owl focused on this before
 static int foveaWeight = 50; //Distance from fovea (center)
 
@@ -365,6 +366,7 @@ int main(int argc, char *argv[])
         namedWindow("Control", CV_WINDOW_AUTOSIZE);
         cvCreateTrackbar("DoG Weight", "Control", &DoGLowWeight, 100);
         cvCreateTrackbar("Canny Weight", "Control", &CannyWeight, 100);
+        cvCreateTrackbar("Canny Strength", "Control", &CannyStrength, 100);
         cvCreateTrackbar("Sobel Weight", "Control", &SobelWeight, 100);
         cvCreateTrackbar("FamiliarW", "Control", &FamiliarWeight, 100);
         cvCreateTrackbar("foveaW", "Control", &foveaWeight, 100);
@@ -546,13 +548,11 @@ Mat SobelFilter(Mat greySrc, int scale, int delta)
 Mat CannyFilter(Mat greySrc) {
     Mat result;
 
-    int lowThreshold = 0;
-
     const int ratio = 3;
     const int kernelSize = 3;
 
     blur(greySrc, result, Size(3,3));
-    Canny(result, result, lowThreshold, (lowThreshold * ratio), kernelSize);
+    Canny(result, result, CannyStrength, (CannyStrength * ratio), kernelSize);
 
     return result;
 }
