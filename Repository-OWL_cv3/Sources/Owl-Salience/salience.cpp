@@ -71,6 +71,7 @@ int OwlCalCapture(cv::VideoCapture &cap, string Folder);
 Mat DoGFilter(Mat src, int k, int g);
 Mat SobelFilter(Mat src, int scale, int delta);
 Mat CannyFilter(Mat greySrc);
+Mat ColourFilter(Mat colourSrc);
 
 static string PiADDR = "10.0.0.10";
 static int PORT = 12345;
@@ -222,6 +223,11 @@ int main(int argc, char *argv[])
         Mat CannyMap8;
         normalize(CannyMap, CannyMap8, 0, 255, CV_MINMAX, CV_8U);
         imshow("CannyMap8", CannyMap8);
+
+        // ======================================CALCULATE FEATURE MAPS ====================================
+        //============================================Colour Map============================================
+        Mat ColourMap = ColourFilter(Left);
+        imshow("ColourMap", ColourMap);
         
         //=====================================Initialise Global Position====================================
         //cout << "Globe Pos" << endl;
@@ -252,6 +258,10 @@ int main(int argc, char *argv[])
         CannyMap.convertTo(CannyMap, CV_32FC1);
         CannyMap *= CannyWeight;
 
+        //Conversions for ColourMap
+        ColourMap.convertTo(ColourMap, CV_32FC1);
+        ColourMap *= ColourWeight;
+
         familiarLocal.convertTo(familiarLocal, CV_32FC1);
         
         // Linear combination of feature maps to create a salience map
@@ -261,6 +271,7 @@ int main(int argc, char *argv[])
         add(Salience, fovea, Salience);
         add(Salience, SobelMap, Salience);
         add(Salience, CannyMap, Salience);
+        add(Salience, ColourMap, Salience);
 
         Salience = Salience.mul(familiarLocal);
         normalize(Salience, Salience, 0, 255, CV_MINMAX, CV_32FC1);
@@ -368,6 +379,7 @@ int main(int argc, char *argv[])
         cvCreateTrackbar("Canny Weight", "Control", &CannyWeight, 100);
         cvCreateTrackbar("Canny Strength", "Control", &CannyStrength, 100);
         cvCreateTrackbar("Sobel Weight", "Control", &SobelWeight, 100);
+        cvCreateTrackbar("Colour Weight", "Control", &ColourWeight, 100);
         cvCreateTrackbar("FamiliarW", "Control", &FamiliarWeight, 100);
         cvCreateTrackbar("foveaW", "Control", &foveaWeight, 100);
 
@@ -557,3 +569,22 @@ Mat CannyFilter(Mat greySrc) {
     return result;
 }
 
+Mat ColourFilter(Mat colourSrc) {
+    Mat result;
+    Mat workMat;
+
+    double alpha = 2.0;
+    int beta = 2;
+
+    cvtColor(colourSrc, workMat, CV_BGR2HLS);
+
+    for (int y = 0; y < workMat.rows; y++) {
+        for (int x = 0; x < workMat.cols; x++) {
+            for (int c = 0; y < workMat.channels(); c++) {
+                result.at<Vec3b>(y, x)[c] = saturate_cast<uchar>(alpha*workMat.at<Vec3b>(y, x)[c] + beta);
+            }
+        }
+    }
+
+    return result;
+}
