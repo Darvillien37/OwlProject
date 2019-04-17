@@ -69,6 +69,7 @@ int OwlCalCapture(cv::VideoCapture &cap, string Folder);
 //void ServoAbs(float DEGRx,float DEGRy,float DEGLx,float DEGLy,float DEGNeck);
 //void ServoRel(float DEGRx,float DEGRy,float DEGLx,float DEGLy,float DEGNeck);
 Mat DoGFilter(Mat src, int k, int g);
+Mat SobelFilter(Mat src, int scale, int delta);
 
 static string PiADDR = "10.0.0.10";
 static int PORT = 12345;
@@ -81,6 +82,7 @@ static string CMD;
 static int ColourWeight = 60; //Saturation and Brightness
 static int DoGHighWeight = 60; //Groups of edges in a small area
 static int DoGLowWeight = 30; //DoG edge detection
+static int SobelWeight = 30; //DoG edge detection
 static int FamiliarWeight = 5; //Familiarity of the target, how much has the owl focused on this before
 static int foveaWeight = 50; //Distance from fovea (center)
 
@@ -199,10 +201,19 @@ int main(int argc, char *argv[])
         
         // ======================================CALCULATE FEATURE MAPS ====================================
         //============================================DoG low bandpass Map============================================
+        //DoG low calcs
         Mat DoGLow = DoGFilter(LeftGrey, 3, 51);
         Mat DoGLow8;
         normalize(DoGLow, DoGLow8, 0, 255, CV_MINMAX, CV_8U);
         imshow("DoG Low", DoGLow8);
+
+        //Sobel calcs
+        // ======================================CALCULATE FEATURE MAPS ====================================
+        //============================================Sobel Map============================================
+        Mat SobelMap = SobelFilter(LeftGrey, 1, 0);
+        Mat SobelMap8;
+        normalize(SobelMap, SobelMap8, 0, 255, CV_MINMAX, CV_8U);
+        imshow("SobelMap8", SobelMap8);
         
         //=====================================Initialise Global Position====================================
         //cout << "Globe Pos" << endl;
@@ -224,6 +235,11 @@ int main(int argc, char *argv[])
         //Convert 8-bit Mat to 32bit floating point
         DoGLow.convertTo(DoGLow, CV_32FC1);
         DoGLow *= DoGLowWeight;
+
+        //Conversions for SobelMap
+        SobelMap.convertTo(SobelMap, CV_32FC1);
+        SobelMap *= SobelWeight;
+
         familiarLocal.convertTo(familiarLocal, CV_32FC1);
         
         // Linear combination of feature maps to create a salience map
@@ -231,13 +247,14 @@ int main(int argc, char *argv[])
 
         add(Salience, DoGLow, Salience);
         add(Salience, fovea, Salience);
+        add(Salience, SobelMap, Salience);
+
         Salience = Salience.mul(familiarLocal);
         normalize(Salience, Salience, 0, 255, CV_MINMAX, CV_32FC1);
         
         //imshow("SalienceNew", Salience);
         
-        //=====================================Find & Move to Most Salient Target=========================================
-        
+        //=====================================Find & Move to Most Salient Target=========================================        
         minMaxLoc(Salience, &minVal, &maxVal, &minLoc, &maxLoc, Mat());
         // Calculate relative servo correction and magnitude of correction
         double xDifference = static_cast<double>((maxLoc.x - 320) * PX2DEG);
@@ -255,7 +272,7 @@ int main(int argc, char *argv[])
                  xDifference * 1,
                  yDifference * 1,
                  (Lx - LxC) / 100);
-        
+
         // Update Familarity Map
         // Familiar map to inhibit salient targets once observed (this is a global map)
         double longitude = (((Ly - LyC) / DEG2PWM) + maxLoc.y * PX2DEG);//calculate longitude as the global map is a spherical projection
@@ -334,7 +351,8 @@ int main(int argc, char *argv[])
         //=========================================Control Window for feature weights =============================================
         //cout << "Control Window" << endl;
         namedWindow("Control", CV_WINDOW_AUTOSIZE);
-        cvCreateTrackbar("LowFreq", "Control", &DoGLowWeight, 100);
+        cvCreateTrackbar("DoG Weight", "Control", &DoGLowWeight, 100);
+        cvCreateTrackbar("Sobel Weight", "Control", &SobelWeight, 100);
         cvCreateTrackbar("FamiliarW", "Control", &FamiliarWeight, 100);
         cvCreateTrackbar("foveaW", "Control", &foveaWeight, 100);
 
