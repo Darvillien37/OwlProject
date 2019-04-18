@@ -227,7 +227,7 @@ int main(int argc, char *argv[])
         familiarLocal.convertTo(familiarLocal, CV_32FC1);
         
         // Linear combination of feature maps to create a salience map
-        Mat Salience = cv::Mat(Left.size(), CV_32FC1,0.0); // init map
+        Mat Salience = cv::Mat(Left.size(), CV_32FC1, 0.0); // init map
 
         add(Salience, DoGLow, Salience);
         add(Salience, fovea, Salience);
@@ -244,15 +244,23 @@ int main(int argc, char *argv[])
         double xDifference = static_cast<double>((maxLoc.x - (IMAGE_WIDTH / 2)) * PX2DEG);
         double yDifference = static_cast<double>((maxLoc.y - (IMAGE_HEIGHT / 2)) * PX2DEG);
         
+        target = Rect( Point(maxLoc.x - 32, maxLoc.y - 32),
+                       Point(maxLoc.x + 32, maxLoc.y + 32));
+        OWLtempl = Left(target);
+        OwlCorrel rightCorrel = Owl_matchTemplate(Right, OWLtempl);
+
         rectangle(Left,
-                  Point(maxLoc.x - 32, maxLoc.y - 32),
-                  Point(maxLoc.x + 32, maxLoc.y + 32),
+                  target,
                   Scalar::all(255),
                   2, 8, 0); //draw rectangle on most salient area
 
+
+        MoveServo(rightCorrel, xDifference, yDifference (Lx - LxC) / 100);//make this method
+
+
         // Move left eye based on salience, move right eye to be parallel with left eye
-        ServoRel(((Lx - LxC + RxC - Rx) / DEG2PWM) + xDifference * 1,
-                 -((LyC - Ly + RyC - Ry) / DEG2PWM) + yDifference * 1,
+        ServoRel(0,
+                 0,
                  xDifference * 1,
                  yDifference * 1,
                  (Lx - LxC) / 100);
