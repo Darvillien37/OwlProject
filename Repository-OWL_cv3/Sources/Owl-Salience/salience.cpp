@@ -472,30 +472,31 @@ string TrackCorrelTarget (OwlCorrel OwlLeft, OwlCorrel OwlRight){
     ostringstream CMDstream;
     string CMD, RxPacket;
     
-    // Only for left eye at the moment
     //** P control set track rate to 10% of destination PWMs to avoid ringing in eye servo
     double KPx = 0.1; // track rate X
     double KPy = 0.1; // track rate Y
-    double LxScaleV = LxRangeV / static_cast<double>(640); //PWM range /pixel range
-    double Xoff = 320 - (OwlLeft.Match.x + OWLtempl.cols / 2) / LxScaleV; // compare to centre of image
+
+    //================= Left side =================
+    double LxScaleV = LxRangeV / static_cast<double>(IMAGE_WIDTH); //PWM range /pixel range
+    double Xoff =  (OwlLeft.Match.x - (IMAGE_WIDTH / 2) + OWLtempl.cols / 2) / LxScaleV; // compare to centre of image
     double LxOld = Lx;
     Lx = static_cast<int>(LxOld - Xoff * KPx); // roughly 300 servo offset = 320 [pixel offset]
-    
-    double LyScaleV = LyRangeV / static_cast<double>(480); //PWM range /pixel range
-    double Yoff = (240 + (OwlLeft.Match.y + OWLtempl.rows / 2) / LyScaleV) * KPy; // compare to centre of image
+
+    double LyScaleV = LyRangeV / static_cast<double>(IMAGE_HEIGHT); //PWM range /pixel range
+    double Yoff = ((OwlLeft.Match.y - (IMAGE_HEIGHT / 2) + OWLtempl.rows / 2) / LyScaleV) * KPy; // compare to centre of image
     double LyOld = Ly;
-    Ly = static_cast<int>(Yoff - LyOld); // roughly 300 servo offset = 320 [pixel offset]
-    
+    Ly = static_cast<int>(LyOld - Yoff); // roughly 300 servo offset = 320 [pixel offset]
 
-    double RxScaleV = RxRangeV/static_cast<double>(640); //PWM range /pixel range
-    double RxOff=  (OwlRight.Match.x - 320  + OWLtempl.cols/2)/RxScaleV ; // compare to centre of image
-    double RxOld=Rx;
-    Rx=static_cast<int>(RxOld + RxOff*KPx); // roughly 300 servo offset = 320 [pixel offset]
+    //================= Right side =================
+    double RxScaleV = RxRangeV/static_cast<double>(IMAGE_WIDTH); //PWM range /pixel range
+    double RxOff = (OwlRight.Match.x - (IMAGE_WIDTH / 2)  + OWLtempl.cols / 2)/RxScaleV; // compare to centre of image
+    double RxOld = Rx;
+    Rx = static_cast<int>(RxOld + RxOff * KPx); // roughly 300 servo offset = 320 [pixel offset]
 
-    double RyScaleV = RyRangeV/static_cast<double>(480); //PWM range /pixel range
-    double RyOff= ((OwlRight.Match.y - 240 + OWLtempl.rows/2) / RyScaleV)*KPy ; // compare to centre of image
-    double RyOld=Ry;
-    Ry=static_cast<int>(RyOld - RyOff); // roughly 300 servo offset = 320 [pixel offset]
+    double RyScaleV = RyRangeV / static_cast<double>(IMAGE_HEIGHT); //PWM range /pixel range
+    double RyOff = ((OwlRight.Match.y - (IMAGE_HEIGHT / 2) + OWLtempl.rows / 2) / RyScaleV) * KPy; // compare to centre of image
+    double RyOld = Ry;
+    Ry = static_cast<int>(RyOld - RyOff); // roughly 300 servo offset = 320 [pixel offset]
 
     
     //** ACTION
