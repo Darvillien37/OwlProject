@@ -225,10 +225,34 @@ int main(int argc, char *argv[])
         imshow("CannyMap8", CannyMap8);
 
         // ======================================CALCULATE FEATURE MAPS ====================================
-        //============================================Colour Map============================================
+        //============================================Colour Map============================================]]
+
+        //PUT INTO METHOD ON RETURN
+        Scalar boundries[] = {
+            Scalar(17, 15, 100), //red min
+            Scalar(50, 56, 200), //red max
+            Scalar(86, 31, 4), //blue min
+            Scalar(220, 88, 50), //blue max
+            Scalar(103, 86, 65), //green min
+            Scalar(145, 133, 128)}; //green max
+
         Mat ColourMap = ColourFilter(Left);
+
+        Mat mask;
+
+        //Red filter
+        inRange(ColourMap, boundries[0], boundries[1], mask);
+        //Blue filter
+        inRange(ColourMap, boundries[2], boundries[3], mask);
+        //Green filter
+        inRange(ColourMap, boundries[4], boundries[5], mask);
+
+        //END
+
         Mat ColourMap8;
         normalize(ColourMap, ColourMap8, 0, 255, CV_MINMAX, CV_8U);
+        //cvtColor(ColourMap, ColourMap, COLOR_BGR2GRAY);
+
         imshow("ColourMap", ColourMap);
         
         //=====================================Initialise Global Position====================================
@@ -268,6 +292,8 @@ int main(int argc, char *argv[])
         
         // Linear combination of feature maps to create a salience map
         Mat Salience = cv::Mat(Left.size(), CV_32FC1,0.0); // init map
+
+        cout << "Colourmap size: " << ColourMap.rows << ", " << ColourMap.cols << " || Salience size: " << Salience.rows << ", " << Salience.cols << endl;
 
         add(Salience, DoGLow, Salience);
         add(Salience, fovea, Salience);
@@ -574,12 +600,17 @@ Mat CannyFilter(Mat greySrc) {
 Mat ColourFilter(Mat colourSrc) {
     Mat result;
 
-    double alpha = 2.0;
-    int beta = 10;
+    Mat red;
+    Mat blue;
+    Mat green;
+
+    double alpha = 1.5;
+    int beta = 30;
 
     //Convert the mat to HSV
     cvtColor(colourSrc, result, CV_BGR2HSV);
 
+    //FOR NEXT: Recycle into saturation filter, HSV > Saturate > Greyscale. Remove from colour detection.
     //Loop through the Mat Going through the y pixels
     for( int y = 0; y < colourSrc.rows; y++ ) {
         //Then the x pixels, so we have a pixel at y,x
@@ -587,10 +618,19 @@ Mat ColourFilter(Mat colourSrc) {
             //Then once at the desired pixel, we loop through the colour channels of the pixel
             for( int c = 0; c < colourSrc.channels(); c++ ) {
                 //And then we apply the alpha + beta to each of the channels of the chosen pixel.
-                result.at<Vec3b>(y,x)[c] = saturate_cast<uchar>( alpha*result.at<Vec3b>(y,x)[c] + beta );
+                //result.at<Vec3b>(y,x)[c] = saturate_cast<uchar>( alpha*result.at<Vec3b>(y,x)[c] + beta );
+                if  (c == 0) {
+                    result.at<Vec3b>(y,x)[c] = saturate_cast<uchar>( alpha*result.at<Vec3b>(y,x)[c] + beta );
+                } else if (c == 1) {
+                   result.at<Vec3b>(y,x)[c] = saturate_cast<uchar>( alpha*result.at<Vec3b>(y,x)[c] + beta );
+                } else if (c == 2) {
+                    result.at<Vec3b>(y,x)[c] = saturate_cast<uchar>( alpha*result.at<Vec3b>(y,x)[c] + beta );
+                }
             }
         }
     }
+
+    //Add colour filters here
 
     return result;
 }
