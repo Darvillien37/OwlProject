@@ -26,7 +26,7 @@ struct OwlCorrel {
 };
 
 Mat OWLtempl; // used in correlation
-Rect target;// = Rect(320-32, 240-32, 64, 64); // target is at the centre of the camera FOV
+Rect target = Rect(320-32, 240-32, 64, 64); // target is at the centre of the camera FOV
                              // drawn over whatever is in the centre of the FOV, to act as a template
 //Mat Left
 //, Rect target
