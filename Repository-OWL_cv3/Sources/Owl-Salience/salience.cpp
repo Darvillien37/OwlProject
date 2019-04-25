@@ -227,33 +227,10 @@ int main(int argc, char *argv[])
         // ======================================CALCULATE FEATURE MAPS ====================================
         //============================================Colour Map============================================]]
 
-        //PUT INTO METHOD ON RETURN
-        Scalar boundries[] = {
-            Scalar(17, 15, 100), //red min
-            Scalar(50, 56, 200), //red max
-            Scalar(86, 31, 4), //blue min
-            Scalar(220, 88, 50), //blue max
-            Scalar(103, 86, 65), //green min
-            Scalar(145, 133, 128)}; //green max
-
         Mat ColourMap = ColourFilter(Left);
-
-        Mat mask;
-
-        //Red filter
-        inRange(ColourMap, boundries[0], boundries[1], mask);
-        //Blue filter
-        inRange(ColourMap, boundries[2], boundries[3], mask);
-        //Green filter
-        inRange(ColourMap, boundries[4], boundries[5], mask);
-
-        //END
-
         Mat ColourMap8;
         normalize(ColourMap, ColourMap8, 0, 255, CV_MINMAX, CV_8U);
-        //cvtColor(ColourMap, ColourMap, COLOR_BGR2GRAY);
-
-        imshow("ColourMap", ColourMap);
+        imshow("ColourMap", ColourMap8);
         
         //=====================================Initialise Global Position====================================
         //cout << "Globe Pos" << endl;
@@ -293,13 +270,11 @@ int main(int argc, char *argv[])
         // Linear combination of feature maps to create a salience map
         Mat Salience = cv::Mat(Left.size(), CV_32FC1,0.0); // init map
 
-        cout << "Colourmap size: " << ColourMap.rows << ", " << ColourMap.cols << " || Salience size: " << Salience.rows << ", " << Salience.cols << endl;
-
         add(Salience, DoGLow, Salience);
         add(Salience, fovea, Salience);
         add(Salience, SobelMap, Salience);
         add(Salience, CannyMap, Salience);
-        //add(Salience, ColourMap, Salience); //Adding the colour map to the Salience crashes it?
+        add(Salience, ColourMap, Salience);
 
         Salience = Salience.mul(familiarLocal);
         normalize(Salience, Salience, 0, 255, CV_MINMAX, CV_32FC1);
@@ -598,39 +573,48 @@ Mat CannyFilter(Mat greySrc) {
 }
 
 Mat ColourFilter(Mat colourSrc) {
+
     Mat result;
 
-    Mat red;
-    Mat blue;
-    Mat green;
-
-    double alpha = 1.5;
-    int beta = 30;
+    //Threshold for the greyscale luminocity.
+    int threshold = 130; //130 default.
 
     //Convert the mat to HSV
     cvtColor(colourSrc, result, CV_BGR2HSV);
 
-    //FOR NEXT: Recycle into saturation filter, HSV > Saturate > Greyscale. Remove from colour detection.
     //Loop through the Mat Going through the y pixels
     for( int y = 0; y < colourSrc.rows; y++ ) {
         //Then the x pixels, so we have a pixel at y,x
         for( int x = 0; x < colourSrc.cols; x++ ) {
-            //Then once at the desired pixel, we loop through the colour channels of the pixel
+            //Then once at the desired pixel, we combine 2 of the channels (SV) into 1 to get a better salience map.
             for( int c = 0; c < colourSrc.channels(); c++ ) {
-                //And then we apply the alpha + beta to each of the channels of the chosen pixel.
-                //result.at<Vec3b>(y,x)[c] = saturate_cast<uchar>( alpha*result.at<Vec3b>(y,x)[c] + beta );
-                if  (c == 0) {
-                    result.at<Vec3b>(y,x)[c] = saturate_cast<uchar>( alpha*result.at<Vec3b>(y,x)[c] + beta );
-                } else if (c == 1) {
-                   result.at<Vec3b>(y,x)[c] = saturate_cast<uchar>( alpha*result.at<Vec3b>(y,x)[c] + beta );
-                } else if (c == 2) {
-                    result.at<Vec3b>(y,x)[c] = saturate_cast<uchar>( alpha*result.at<Vec3b>(y,x)[c] + beta );
+                //HSV Channels are: H[0]S[1]V[2]
+                //If in 3rd channel (V),
+                if (c == 2) {
+                    //Then, we times the S and V channels together to combine them.
+                    result.at<Vec3b>(y,x)[c] *= saturate_cast<uchar>(result.at<Vec3b>(y,x)[c - 1]);
                 }
             }
         }
     }
 
-    //Add colour filters here
+    //We then convert the colour map to greyscale for the saliency map.
+    cvtColor(result, result, COLOR_BGR2GRAY);
+
+    //Loop through the image once again.
+    for( int y = 0; y < result.rows; y++ ) {
+        //Then the x pixels, so we have a pixel at y,x
+        for( int x = 0; x < result.cols; x++ ) {
+            //Then if the luminocity is blow threshold, just set the pixel to 0
+                //Essentially ignoring it.
+            if (result.at<uchar>(y, x) <= threshold) {
+                result.at<uchar>(y, x) = 0;
+            }
+        }
+    }
+
+    //We can then blur the image to reduce noise, not sure if this is a good idea?
+    //GaussianBlur(result, result, Size(3, 3), 0);
 
     return result;
 }
