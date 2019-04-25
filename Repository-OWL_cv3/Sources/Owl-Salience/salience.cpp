@@ -50,6 +50,9 @@
 
 #define IMAGE_WIDTH 640
 #define IMAGE_HEIGHT 480
+#define KPX 0.13 // track rate X
+#define KPY 0.13 // track rate Y
+
 
 #define xOffset  -0.3815
 #define yOffset -54.6682
@@ -238,33 +241,38 @@ int main(int argc, char *argv[])
         
         //=====================================Find & Move to Most Salient Target=========================================
         
+        //Find the maximum salience value in the Salience array.
         minMaxLoc(Salience, &minVal, &maxVal, &minLoc, &maxLoc, Mat());
 
         // Calculate relative servo correction and magnitude of correction
-        double xDifference = static_cast<double>((maxLoc.x - (IMAGE_WIDTH / 2)) * PX2DEG);
-        double yDifference = static_cast<double>((maxLoc.y - (IMAGE_HEIGHT / 2)) * PX2DEG);
+        //double lxDifference = static_cast<double>((maxLoc.x - (IMAGE_WIDTH / 2)) * PX2DEG);
+        //double lyDifference = static_cast<double>((maxLoc.y - (IMAGE_HEIGHT / 2)) * PX2DEG);
         
+        //Set the target round the most salient area
         target = Rect( Point(maxLoc.x - 32, maxLoc.y - 32),
                        Point(maxLoc.x + 32, maxLoc.y + 32));
+
+        //set the target from the left eye.
         OWLtempl = Left(target);
-        OwlCorrel rightCorrel = Owl_matchTemplate(Right, OWLtempl);
+        //correlate the images.
+        OwlCorrel OWL = Owl_matchTemplate(Right, Left, OWLtempl);
 
+        //Draw rectangle on most salient area
         rectangle(Left,
-                  target,
-                  Scalar::all(255),
-                  2, 8, 0); //draw rectangle on most salient area
+            target,
+            Scalar::all(255),
+            2, 8, 0);
+        //Draw a circle on the centers of the video windows
+         circle(Left, Point(IMAGE_WIDTH/2,IMAGE_HEIGHT/2), 5, Scalar(0,255,0), 1);
+         circle(Right, Point(IMAGE_WIDTH/2,IMAGE_HEIGHT/2), 5, Scalar(0,255,0), 1);
+
+        imshow("target", OWLtempl);
+        imshow("Right", Right);
+        imshow("Left", Left);
+
+        TrackCorrelTarget(OWL);//Move the eyes
 
 
-        MoveServo(rightCorrel, xDifference, yDifference (Lx - LxC) / 100);//make this method
-
-
-        // Move left eye based on salience, move right eye to be parallel with left eye
-        ServoRel(0,
-                 0,
-                 xDifference * 1,
-                 yDifference * 1,
-                 (Lx - LxC) / 100);
-        
         // Update Familarity Map
         // Familiar map to inhibit salient targets once observed (this is a global map)
         double longitude = (((Ly - LyC) / DEG2PWM) + maxLoc.y * PX2DEG);//calculate longitude as the global map is a spherical projection
@@ -287,7 +295,7 @@ int main(int argc, char *argv[])
         Mat familiarSmall;
         resize(familiar, familiarSmall, familiar.size() / 4);
         imshow("Familiar", familiarSmall);
-        //imshow("Right", Right);
+
         
         //=================================Convert Saliency into Heat Map=====================================
         
@@ -336,7 +344,7 @@ int main(int argc, char *argv[])
         }
         
         resize(Left, Left, Left.size() / 2);
-        imshow("Left", Left);
+
         resize(SalienceHSV, SalienceHSV, SalienceHSV.size() / 2);
         imshow("SalienceHSV", SalienceHSV);
         
@@ -362,8 +370,8 @@ int main(int argc, char *argv[])
 string ServoAbs(double DEGRx, double DEGRy, double DEGLx, double DEGLy, double DEGNeck){
     int Rx, Ry, Lx, Ly, Neck;
 
-    //Rx = static_cast<int>(DEGRx * DEG2PWM);
-    //Ry = static_cast<int>(DEGRy * DEG2PWM);
+    Rx = static_cast<int>(DEGRx * DEG2PWM);
+    Ry = static_cast<int>(DEGRy * DEG2PWM);
     Lx = static_cast<int>(DEGLx * DEG2PWM);
     Ly = static_cast<int>(DEGLy * DEG2PWM);
     Neck = static_cast<int>(DEGNeck * DEG2PWM);
@@ -411,8 +419,8 @@ string ServoAbs(double DEGRx, double DEGRy, double DEGLx, double DEGLy, double D
 //      i.e. If servo is at 5 degrees, and -3 is passed in, the result will be 2.
 string ServoRel(double DEGRx, double DEGRy, double DEGLx, double DEGLy, double DEGNeck){
     //int Rx,Ry,Lx,Ly, Neck;
-//    Rx = static_cast<int>(DEGRx * DEG2PWM) + Rx;
-//    Ry = static_cast<int>(-DEGRy * DEG2PWM) + Ry;
+    Rx = static_cast<int>(DEGRx * DEG2PWM) + Rx;
+    Ry = static_cast<int>(-DEGRy * DEG2PWM) + Ry;
     Lx = static_cast<int>(DEGLx * DEG2PWM) + Lx;
     Ly = static_cast<int>(DEGLy * DEG2PWM) + Ly;
     Neck = static_cast<int>(-DEGNeck * DEG2PWM) + Neck;
@@ -457,22 +465,30 @@ string ServoRel(double DEGRx, double DEGRy, double DEGLx, double DEGLy, double D
 
 string TrackCorrelTarget (OwlCorrel OWL){
     ostringstream CMDstream;
-    string CMD, RxPacket;
-    
-    //** P control set track rate to 10% of destination PWMs to avoid ringing in eye servo
-    double KPx = 0.1; // track rate X
-    double KPy = 0.1; // track rate Y
+    string CMD, RxPacket;    
 
     //================= Left side =================
     double LxScaleV = LxRangeV / static_cast<double>(IMAGE_WIDTH); //PWM range /pixel range
-    double Xoff =  (OWL.Match.x - (IMAGE_WIDTH / 2) + OWLtempl.cols / 2) / LxScaleV; // compare to centre of image
+    double Xoff =  (OWL.MatchL.x - (IMAGE_WIDTH / 2) + OWLtempl.cols / 2) / LxScaleV; // compare to centre of image
     double LxOld = Lx;
-    Lx = static_cast<int>(LxOld - Xoff * KPx); // roughly 300 servo offset = 320 [pixel offset]
+    Lx = static_cast<int>(LxOld - Xoff * KPX); // roughly 300 servo offset = 320 [pixel offset]
 
     double LyScaleV = LyRangeV / static_cast<double>(IMAGE_HEIGHT); //PWM range /pixel range
-    double Yoff = ((OWL.Match.y - (IMAGE_HEIGHT / 2) + OWLtempl.rows / 2) / LyScaleV) * KPy; // compare to centre of image
+    double Yoff = ((OWL.MatchL.y - (IMAGE_HEIGHT / 2) + OWLtempl.rows / 2) / LyScaleV) * KPY; // compare to centre of image
     double LyOld = Ly;
-    Ly = static_cast<int>(LyOld - Yoff); // roughly 300 servo offset = 320 [pixel offset]
+    Ly = static_cast<int>(LyOld - Yoff); // roughly 300 servo offset = 320 [pixel offset]    
+
+
+    //================= Right side =================
+    double RxScaleV = RxRangeV / static_cast<double>(IMAGE_WIDTH); //PWM range /pixel range
+    double RxOff = (OWL.MatchR.x - (IMAGE_WIDTH / 2)  + OWLtempl.cols / 2) / RxScaleV ; // compare to centre of image
+    double RxOld = Rx;
+    Rx = static_cast<int>(RxOld + RxOff * KPX); // roughly 300 servo offset = 320 [pixel offset]
+
+    double RyScaleV = RyRangeV / static_cast<double>(IMAGE_HEIGHT); //PWM range /pixel range
+    double RyOff = ((OWL.MatchR.y - (IMAGE_HEIGHT / 2) + OWLtempl.rows / 2) / RyScaleV) * KPY ; // compare to centre of image
+    double RyOld = Ry;
+    Ry = static_cast<int>(RyOld - RyOff); // roughly 300 servo offset = 320 [pixel offset]
 
 
     

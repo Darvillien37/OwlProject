@@ -21,8 +21,10 @@ using namespace std;
 using namespace cv;
 
 struct OwlCorrel {
-    Point Match;
-    Mat Result;
+    Point MatchL;
+    Mat ResultL;
+    Point MatchR;
+    Mat ResultR;
 };
 
 Mat OWLtempl; // used in correlation
@@ -30,37 +32,51 @@ Rect target = Rect(320-32, 240-32, 64, 64); // target is at the centre of the ca
                              // drawn over whatever is in the centre of the FOV, to act as a template
 //Mat Left
 //, Rect target
-struct OwlCorrel Owl_matchTemplate(Mat inputImage, Mat templ){
+struct OwlCorrel Owl_matchTemplate(Mat rightImage, Mat leftImage, Mat templ)
+{
+    static OwlCorrel OWL;
+    // Create the result matrix
+    int result_cols = leftImage.cols - templ.cols + 1;
+    int result_rows = leftImage.rows - templ.rows + 1;
 
-// Create the result matrix
-int result_cols = inputImage.cols - templ.cols + 1;
-int result_rows = inputImage.rows - templ.rows + 1;
 
-static OwlCorrel OWL;
-OWL.Result.create(result_rows, result_cols, CV_32FC1);
+    OWL.ResultL.create(result_rows, result_cols, CV_32FC1);
 
-// Do the Matching, on the right eye, and Normalize
-int match_method = 5; // CV_TM_CCOEFF_NORMED;
-matchTemplate(inputImage, templ, OWL.Result, match_method);
+    result_cols = rightImage.cols - templ.cols + 1;
+    result_rows = rightImage.rows - templ.rows + 1;
 
-//Dont normalise in other one, we may need this later
-//normalize(OWL.Result, OWL.Result);
+    OWL.ResultR.create(result_rows, result_cols, CV_32FC1);
 
-// Localizing the best match with minMaxLoc
-double minVal;
-double maxVal;
-Point minLoc;
-Point maxLoc;
-Point matchLoc;
+    // Do the Matching, on the right eye, and Normalize
+    int match_method = 5; // CV_TM_CCOEFF_NORMED;
+    matchTemplate(leftImage, templ, OWL.ResultL, match_method);
+    matchTemplate(rightImage, templ, OWL.ResultR, match_method);
 
-minMaxLoc(OWL.Result, &minVal, &maxVal, &minLoc, &maxLoc, Mat());
+    //Dont normalise in other one, we may need this later
+    //normalize(OWL.Result, OWL.Result);
 
-//For SQDIFF and SQDIFF_NORMED, the best matches are lower values. For all the other methods, the higher the better
-// if( match_method  == CV_TM_SQDIFF || match_method == CV_TM_SQDIFF_NORMED ) //CV3
-if(match_method  == cv::TM_SQDIFF || match_method == cv::TM_SQDIFF_NORMED ) //CV4
-{ OWL.Match = minLoc; }
-else
-{ OWL.Match = maxLoc; }
+    // Localizing the best match with minMaxLoc
+    double minVal;
+    double maxVal;
+    Point minLoc;
+    Point maxLoc;
+    Point matchLoc;
 
-return (OWL);
+    //For the left eye
+    minMaxLoc(OWL.ResultL, &minVal, &maxVal, &minLoc, &maxLoc, Mat());
+    //For SQDIFF and SQDIFF_NORMED, the best matches are lower values. For all the other methods, the higher the better
+    if(match_method  == cv::TM_SQDIFF || match_method == cv::TM_SQDIFF_NORMED ) //CV4
+    { OWL.MatchL = minLoc; }
+    else
+    { OWL.MatchL = maxLoc; }
+
+    //For the right eye
+    minMaxLoc(OWL.ResultR, &minVal, &maxVal, &minLoc, &maxLoc, Mat());
+    //For SQDIFF and SQDIFF_NORMED, the best matches are lower values. For all the other methods, the higher the better
+    if(match_method  == cv::TM_SQDIFF || match_method == cv::TM_SQDIFF_NORMED ) //CV4
+    { OWL.MatchR = minLoc; }
+    else
+    { OWL.MatchR = maxLoc; }
+
+    return (OWL);
 }
