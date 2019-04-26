@@ -335,7 +335,6 @@ int main(int argc, char *argv[])
 //            }
 
             Mat LeftCrop = Left(Rect(220, 140, 200, 200));//image cropped to minimize image stitching artifacts
-            //OWLtempl = Left(LeftCrop);
 
             LeftCrop.copyTo(PanView(Rect(GlobalPos.x, GlobalPos.y, LeftCrop.cols, LeftCrop.rows)));
             Mat PanViewSmall;
@@ -356,7 +355,6 @@ int main(int argc, char *argv[])
         cvCreateTrackbar("foveaW", "Control", &foveaWeight, 100);
 
 
-        //OwlCorrel OWL = Owl_matchTemplate(Right, OWLtempl);
         
         waitKey(10);
     }
@@ -490,16 +488,24 @@ string TrackCorrelTarget (OwlCorrel OWL){
     double RyOld = Ry;
     Ry = static_cast<int>(RyOld - RyOff); // roughly 300 servo offset = 320 [pixel offset]
 
+    double LxCopy = Lx;
+    double LyCopy = Ly;
+    double RxCopy = Rx;
+    double RyCopy = Ry;
+    double NeckCopy = NeckC;
+
 
     
     //** ACTION
     // move to get minimise distance from centre of both images, ie verge in to target
     // move servos to position
-    string retSTR = ServoAbs(((RxC - Rx) / DEG2PWM), //Rx
-                            ((RyC - Ry) / DEG2PWM), // Ry -- the right eye Y servo has inverted direction compared to left.
-                            ((LxC - Lx) / DEG2PWM),// Lx
-                            ((LyC - Ly) / DEG2PWM), // Ly
-                            NeckC / DEG2PWM); // NECK .. no neck motion as yet
+    string retSTR = ServoAbs(
+                (Rx / DEG2PWM), //Rx
+                (Ry / DEG2PWM), // Ry -- the right eye Y servo has inverted direction compared to left.
+                (Lx / DEG2PWM),// Lx
+                (Ly / DEG2PWM), // Ly
+                NeckC / DEG2PWM
+                ); // NECK .. no neck motion as yet
     return (retSTR);
 }
 
