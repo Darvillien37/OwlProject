@@ -20,9 +20,9 @@ using namespace std;
 using namespace cv;
 
 struct OwlCorrel {
-    Point Match;
+    Point MatchL;
     Point MatchR;
-    Mat Result;
+    Mat ResultL;
     Mat ResultR;
 };
 
@@ -31,44 +31,48 @@ Rect target = Rect(320-32, 240-32, 64, 64); // target is at the centre of the ca
 Rect textBox = Rect(320-155, 433, 310, 40); // target is at the centre of the camera FOV
 // drawn over whatever is in the centre of the FOV, to act as a template
 
-struct OwlCorrel Owl_matchTemplate(Mat Right, Mat Left, Mat templ, Rect target){
-
-
-    /// Create the result matrix
-    int result_cols =  Left.cols - templ.cols + 1;
-    int result_rows = Left.rows - templ.rows + 1;
-
+// Overlays a template over 2 images and finds the best match for the template to be.
+struct OwlCorrel Owl_matchTemplate(Mat Right, Mat Left, Mat templ)
+{
     static OwlCorrel OWL;
-    OWL.Result.create(result_rows, result_cols,  CV_32FC1 );
 
+    // Initialise the result matrix for left eye
+    int result_cols =  Left.cols - templ.cols + 1;
+    int result_rows = Left.rows - templ.rows + 1;    
+    OWL.ResultL.create(result_rows, result_cols,  CV_32FC1 );
+
+    // Initialise the result matrix for right eye
     result_cols = Right.cols - templ.cols + 1;
     result_rows = Right.rows - templ.rows + 1;
-
     OWL.ResultR.create(result_rows, result_cols, CV_32FC1);
 
-    /// Do the Matching and Normalize
-    int match_method = 5; /// CV_TM_CCOEFF_NORMED;
-    matchTemplate(Left, templ, OWL.Result, match_method);
+    // Do the Matching and Normalize
+    int match_method = 5; // CV_TM_CCOEFF_NORMED;
+    matchTemplate(Left, templ, OWL.ResultL, match_method);
     matchTemplate(Right, templ, OWL.ResultR, match_method);
 
-    /// Localizing the best match with minMaxLoc
+    // Localizing the best match with minMaxLoc
     double minVal;
     double maxVal;
     Point minLoc;
     Point maxLoc;
     Point matchLoc;
 
-    minMaxLoc(OWL.Result, &minVal, &maxVal, &minLoc, &maxLoc, Mat());
+    //Find the location of the best match.
+    // Left Eye:
+    minMaxLoc(OWL.ResultL, &minVal, &maxVal, &minLoc, &maxLoc, Mat());
     // For SQDIFF and SQDIFF_NORMED, the best matches are lower values. For all the other methods, the higher the better
     if( match_method  == cv::TM_SQDIFF || match_method == cv::TM_SQDIFF_NORMED ) //CV4
     {
-        OWL.Match = minLoc;
+        OWL.MatchL = minLoc;
     }
     else
     {
-        OWL.Match = maxLoc;
+        OWL.MatchL = maxLoc;
     }
 
+    //Find the location of the best match.
+    // Right Eye:
     minMaxLoc(OWL.ResultR, &minVal, &maxVal, &minLoc, &maxLoc, Mat());
     // For SQDIFF and SQDIFF_NORMED, the best matches are lower values. For all the other methods, the higher the better
     if( match_method  == cv::TM_SQDIFF || match_method == cv::TM_SQDIFF_NORMED ) //CV4
@@ -95,8 +99,6 @@ int OwlCalCapture(cv::VideoCapture &cap, string Folder){
         {
             return(-1);
         }
-        //Mat FrameFlpd; cv::flip(Frame,FrameFlpd,1); // Note that Left/Right are reversed now
-        //Mat Gray; cv::cvtColor(Frame, Gray, cv::COLOR_BGR2GRAY);
         // Split into LEFT and RIGHT images from the stereo pair sent as one MJPEG iamge
         cv::Mat Right = Frame( Rect(0, 0, 640, 480)); // using a rectangle
         cv::Mat Left = Frame( Rect(640, 0, 640, 480)); // using a rectanglecv::imwrite(Folder + "left" + count + "jpg", Left);

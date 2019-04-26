@@ -18,9 +18,8 @@
 using namespace std;
 using namespace cv;
 
-//Moved to global variables.
 ostringstream CMDstream; // string packet
-string CMD;
+string CMD; //command string to send
 
 string source ="http://10.0.0.10:8080/stream/video.mjpeg"; // was argv[1];           // the source file name
 string PiADDR = "10.0.0.10";
@@ -29,21 +28,29 @@ string PiADDR = "10.0.0.10";
 int PORT=12345;
 SOCKET u_sock;
 
+//Packet received from owl, after sending.
 string RxPacket;
+//Flag to clip the requested PWM value to the Min and Max bounds.
 bool trunkateOnSend = true;
 
+//Folder to store images in.
 string const IMAGES_FOLDER = "../../Data/OurImages/";
 
-void SendData() {
-
+//Sent the servo data to the OWL
+void SendData()
+{
+    //If we are clipping the PWM values between their Min and Max bounds
     if(trunkateOnSend){
-        //Check if
+        // If Rx is smaller than Min bound
         if (Rx < RxLm) {
-            Rx = RxLm;
-        }
+            Rx = RxLm; // Set Rx to min bound
+        }        
+        // If Rx is greater than Max bound
         if (Rx > RxRm) {
-            Rx = RxRm;
-        }
+            Rx = RxRm; // Set Rx to max bound
+        }        
+        //Same structure as the above two if statements,
+        // repeated for all servo values.
         if (Ry < RyBm) {
             Ry = RyBm;
         }
@@ -70,46 +77,58 @@ void SendData() {
         }
     }
 
+    //Clear the command stream.
     CMDstream.str("");
     CMDstream.clear();
+
+    //Set the command stream to the OWL command interface.
     CMDstream << Rx << " " << Ry << " " << Lx << " " << Ly << " " << Neck;
+    //Get the string of the command
     CMD = CMDstream.str();
 #ifdef _WIN32
-    RxPacket= OwlSendPacket (u_sock, CMD.c_str());
+    //Send the command packet to the OWL.
+    RxPacket = OwlSendPacket(u_sock, CMD.c_str());
 #else
     OwlSendPacket (clientSock, CMD.c_str());
 #endif
 }
 
-void CalculateDistance() {
-    //Radians for both eyes, used for distance calculations.
-    //Right eye is flipped
-    rightRads = (float(RxC - Rx)*M_PI) / (Deg2Pwm * 180);
-    leftRads = (float(Lx - LxC)*M_PI) / (Deg2Pwm * 180);
-    //cout << rightRads * 180 / M_PI << "\t";
-    //cout << leftRads * 180 / M_PI << endl;
+//Calculate the distance of the object, based on the PWM values for the eyes.
+void CalculateDistance() {    
+    //Note: Right eye servo is flipped
+    //Get the radian angle of the eyes,
+    // from the current location to the center of the eyes.
+    rightRads = (float(RxC - Rx) * M_PI) / (Deg2Pwm * 180);
+    leftRads = (float(Lx - LxC) * M_PI) / (Deg2Pwm * 180);
+
+    //Calculations based on lecture notes
 
     //dL = distanceLeft, p1, p2, p3 = part1, part2 and part3 respectively of distance formula.
+    //distance left = (IPD COS(angle right)) / (SIN(angle left + angle right)
     float dL = (IPD * cos(rightRads)) / sin(rightRads + leftRads);
 
-    float p1 = pow(dL, 2);
-    float p2 = pow(IPD, 2) / 4;
-    float p3 = (dL * IPD * sin(leftRads));
+    float p1 = pow(dL, 2); //(distance left^2)
+    float p2 = pow(IPD, 2) / 4; //(IPD^2/4)
+    float p3 = (dL * IPD * sin(leftRads)); //(distance left * IPD * SIN(angle left)
 
-    //From the scatter graph
+    //distance estimate = square root((distance left^2) + (IPD^2/4) - (distance left * IPD * SIN(angle left))
+    float estimatedDistance = (sqrt((p1 + p2) - p3));
+
+    //Now correct the estemated distance based off of scatter graph data.
     //y = 0.9926x - 13.624
-
-    calcDistance = (0.9926 * (sqrt((p1 + p2) - p3))) - 13.624;
-
+    calcDistance = (0.9926f * estimatedDistance) - 13.624f;
 }
+
 
 int main(int argc, char *argv[])
 {
     char receivedStr[1024];
     int N;
 
-    Rx = RxLm; Lx = LxLm;
-    Ry = RyC; Ly = LyC;
+    Rx = RxLm;
+    Lx = LxLm;
+    Ry = RyC;
+    Ly = LyC;
     Neck= NeckC;
 
     /***********************
@@ -121,12 +140,16 @@ int main(int argc, char *argv[])
     const Mat OWLresult;// correlation result passed back from matchtemplate
     cv::Mat Frame;
     Mat Left, Right; // images
+
+    // Different modes the program can be running in.
     enum MODE {MANUAL, TRACKING, CAPTURING, EXITING};
+    // Initialise the starting mode to manual.
     MODE currentMode = MANUAL;
 
-
+    // While the program has not been signald to exit (program is running)
     while (currentMode != EXITING){
         cout<< "Mode Updated: " << currentMode << endl;
+        //Set all servo values to centre points
         Rx = RxC;
         Lx = LxC;
         Ry = RyC;
@@ -134,24 +157,28 @@ int main(int argc, char *argv[])
         Neck = NeckC;
         SendData();
 
-        VideoCapture cap (source);              // Open input
+        VideoCapture cap(source); // Open input
         if (!cap.isOpened())
         {
             cout  << "Could not open the input video: " << source << endl;
             return -1;
         }
-        //Rect region_of_interest = Rect(x, y, w, h);
+
+        //While the program is in manual mode...
         while (currentMode == MANUAL){
+            //Capture an image from the video stream.
             if (!cap.read(Frame))
             {
                 cout  << "Could not open the input video: " << source << endl;
                 //         break;
             }
-            Mat FrameFlpd; cv::flip(Frame,FrameFlpd,1); // Note that Left/Right are reversed now
-            //Mat Gray; cv::cvtColor(Frame, Gray, cv::COLOR_BGR2GRAY);
+
+            // Note that Left/Right are reversed now
+            Mat FrameFlpd; cv::flip(Frame,FrameFlpd,1);
+
             // Split into LEFT and RIGHT images from the stereo pair sent as one MJPEG iamge
-            Left= FrameFlpd( Rect(0, 0, 640, 480)); // using a rectangle
-            Right=FrameFlpd( Rect(640, 0, 640, 480)); // using a rectangle
+            Left = FrameFlpd(Rect(0, 0, 640, 480)); // using a rectangle
+            Right=FrameFlpd(Rect(640, 0, 640, 480)); // using a rectangle
             Mat RightCopy;
             Right.copyTo(RightCopy);
             rectangle( RightCopy, target, Scalar::all(255), 2, 8, 0 ); // draw white rect
@@ -236,52 +263,46 @@ int main(int argc, char *argv[])
         destroyAllWindows();
 
         //============= Normalised Cross Correlation ==========================
-        // right is the template, just captured manually
+        // While the the application is tracking.
         while (currentMode == TRACKING) {
+            //Read a frame from the video feed.
             if (!cap.read(Frame))
             {
                 cout  << "Could not open the input video: " << source << endl;
                 break;
             }
 
-
-            Mat FrameFlpd; cv::flip(Frame,FrameFlpd,1); // Note that Left/Right are reversed now
-            //Mat Gray; cv::cvtColor(Frame, Gray, cv::COLOR_BGR2GRAY);
+            Mat FrameFlpd; cv::flip(Frame,FrameFlpd,1); // Note that Left/Right are reversed now            
             // Split into LEFT and RIGHT images from the stereo pair sent as one MJPEG iamge
-            Left= FrameFlpd( Rect(0, 0, 640, 480)); // using a rectangle
-            Right=FrameFlpd( Rect(640, 0, 640, 480)); // using a rectangle
+            Left = FrameFlpd(Rect(0, 0, 640, 480)); // using a rectangle
+            Right = FrameFlpd(Rect(640, 0, 640, 480)); // using a rectangle
 
-            //Rect target= Rect(320-32, 240-32, 64, 64); //defined in owl-cv.h
-            //Mat OWLtempl(Right, target);
-            OwlCorrel OWL;
-            OWL = Owl_matchTemplate( Right,  Left, OWLtempl, target);
-            /// Show me what you got
+            //Mach the template for both eyes
+            OwlCorrel OWL = Owl_matchTemplate(Right, Left, OWLtempl);
+
             Mat RightCopy;
             Right.copyTo(RightCopy);
-            // rectangle(RightCopy, target, Scalar::all(255), 2, 8, 0 );
+
+            //Draw rectangles around the best match.
             rectangle(RightCopy, OWL.MatchR, Point( OWL.MatchR.x + OWLtempl.cols , OWL.MatchR.y + OWLtempl.rows), Scalar::all(255), 2, 8, 0 );
-            rectangle(Left, OWL.Match, Point( OWL.Match.x + OWLtempl.cols , OWL.Match.y + OWLtempl.rows), Scalar::all(255), 2, 8, 0 );
-            rectangle(OWL.Result, OWL.Match, Point( OWL.Match.x + OWLtempl.cols , OWL.Match.y + OWLtempl.rows), Scalar::all(255), 2, 8, 0 );
+            rectangle(Left, OWL.MatchL, Point( OWL.MatchL.x + OWLtempl.cols , OWL.MatchL.y + OWLtempl.rows), Scalar::all(255), 2, 8, 0 );
+            rectangle(OWL.ResultL, OWL.MatchL, Point( OWL.MatchL.x + OWLtempl.cols , OWL.MatchL.y + OWLtempl.rows), Scalar::all(255), 2, 8, 0 );
             rectangle(OWL.ResultR, OWL.MatchR, Point( OWL.MatchR.x + OWLtempl.cols , OWL.MatchR.y + OWLtempl.rows), Scalar::all(255), 2, 8, 0 );
+            //Draw a circle at the center point of each eye.
             circle(Left,Point(320,240),5,Scalar(0,255,0),1);
             circle(RightCopy,Point(320,240),5,Scalar(0,255,0),1);
 
             waitKey(1);
             int key = waitKey(10);
-            switch (key )
-            {
-            case 'm':// 'm' key
-                currentMode = MANUAL;
-                break;
-                //            case '.':// '>' key
-                //                Deg2Pwm = Deg2Pwm + 0.05;
-                //                break;
-                //            case ',':// '<' key
-                //                Deg2Pwm = Deg2Pwm - 0.05;
-                //                break;
+            //if the user has pressed a key,
+            switch (key)
+            {   // and the user has pressed the 'm' key...
+                case 'm':// 'm' key
+                    currentMode = MANUAL;//Signal to return back to manual mode.
+                    break;
             }
 
-
+//ToDo: comment from here down.
 
             // Only for left eye at the moment
             //** P control set track rate to 10% of destination PWMs to avoid ringing in eye servo
@@ -290,12 +311,12 @@ int main(int argc, char *argv[])
             double KPy=0.13; // track rate Y
 
             double LxScaleV = LxRangeV/static_cast<double>(640); //PWM range /pixel range
-            double Xoff= (OWL.Match.x - 320 + OWLtempl.cols/2)/LxScaleV ; // compare to centre of image
+            double Xoff= (OWL.MatchL.x - 320 + OWLtempl.cols/2)/LxScaleV ; // compare to centre of image
             double LxOld=Lx;
             Lx=static_cast<int>(LxOld + Xoff*KPx); // roughly 300 servo offset = 320 [pixel offset]
 
             double LyScaleV = LyRangeV/static_cast<double>(480); //PWM range /pixel range
-            double Yoff= ((OWL.Match.y - 240 + OWLtempl.rows/2)/LyScaleV)*KPy ; // compare to centre of image
+            double Yoff= ((OWL.MatchL.y - 240 + OWLtempl.rows/2)/LyScaleV)*KPy ; // compare to centre of image
             double LyOld=Ly;
             Ly=static_cast<int>(LyOld - Yoff); // roughly 300 servo offset = 320 [pixel offset]
 
@@ -333,7 +354,7 @@ int main(int argc, char *argv[])
 
             imshow("Owl-L", Left);
             imshow("Owl-R", RightCopy);
-            imshow("Correl L", OWL.Result);
+            imshow("Correl L", OWL.ResultL);
             imshow("CorrelR", OWL.ResultR);
 
             // move to get minimise distance from centre of both images, ie verge in to targe

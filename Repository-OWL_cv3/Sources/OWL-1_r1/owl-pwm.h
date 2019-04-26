@@ -7,7 +7,7 @@
 #endif // OWLPWM_HPP
 
 
-#define OWL5
+#define OWL14
 
 //Hello World!!
 
@@ -46,8 +46,7 @@ static const int IPD = 67;//mm, interp pupelary distance
 //then change this value till the result is the known value (1m)
 static float Deg2Pwm = 10.98;
 
-static int RxDisparityToeIn = RxC - 20;
-static int LxDisparityToeIn = LxC + 20;
+
 
 
 #endif
@@ -88,7 +87,8 @@ static int IPD = 65;//mm, inter-pupelary distance
 static float Deg2Pwm = 10.58;
 #endif
 
-
+static int RxDisparityToeIn = RxC - 20;
+static int LxDisparityToeIn = LxC + 20;
 
 static int Ry,Rx,Ly,Lx,Neck; // calculate values for position
 //MAX servo eye socket ranges
