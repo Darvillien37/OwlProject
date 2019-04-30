@@ -302,11 +302,7 @@ int main(int argc, char *argv[])
                     break;
             }
 
-//ToDo: comment from here down.
-
-            // Only for left eye at the moment
-            //** P control set track rate to 10% of destination PWMs to avoid ringing in eye servo
-            //======== try altering KPx & KPy to see the settling time/overshoot
+            // Tracking rates for both eyes, can't be too high or will overshoot target.
             double KPx=0.13; // track rate X
             double KPy=0.13; // track rate Y
 
@@ -332,33 +328,44 @@ int main(int argc, char *argv[])
             double RyOld=Ry;
             Ry=static_cast<int>(RyOld - RyOff); // roughly 300 servo offset = 320 [pixel offset]
 
-            //Create the string
+            // Create the string, for the distance value, calls calcDistance()
             string distanceString = "Distance: " + to_string((int)calcDistance) + "mm";
-            //Draw rectangle for text.
+
+            // Draw rectangle for text.
             rectangle( RightCopy, textBox, Scalar::all(0), -1, 8, 0);
-            if (Lx < LxC && Rx > RxC) { //If eyes diverge
+
+            // Check to see if eyes are diverging on a target.
+            // If not, move the neck towards the direction the eyes
+            // are looking in.
+            if (Lx < LxC && Rx > RxC) { // If eyes diverge
                 distanceString = "Divergent Target lost!";
             }
-            else if(Rx > RxC)//Looking to the right
+            else if(Rx > RxC)// Looking to the right
             {
+                // Move the neck to the right
                 Neck = Neck - 5;
             }
-            else if (Lx < LxC) // looking left
+            else if (Lx < LxC) // Looking to the left
             {
+                // Move the neck to theleft.
                 Neck = Neck + 5;
             }
+
+            //Then we write the distance string on to the screen.
             putText(RightCopy, distanceString, cvPoint(165, 465), FONT_HERSHEY_DUPLEX, 1, Scalar::all(255), 0, 0, false);
 
+            //Then calulate the distance for the next loop.
             CalculateDistance();
+            //Output all of the variables to console (For debugging and monitoring)
             cout << "Rx: " << Rx << "   Lx: " << Lx << "   Deg2Pwm: " << Deg2Pwm << "   Distance: " << calcDistance << "mm" << endl;
 
+            //Display all of the important windows,
             imshow("Owl-L", Left);
             imshow("Owl-R", RightCopy);
             imshow("Correl L", OWL.ResultL);
             imshow("CorrelR", OWL.ResultR);
 
-            // move to get minimise distance from centre of both images, ie verge in to targe
-            // move servos to position
+            // send the servo data to the PI.
             SendData();
 
         } // end of tracking loop
