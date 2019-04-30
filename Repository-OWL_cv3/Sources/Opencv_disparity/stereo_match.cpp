@@ -43,24 +43,26 @@ bool liveTargeting = false;
 
 //Boolean for storing and displaying the distance of the target.
 string distanceString = "";
-//Integer for saving the distance value.
+//Double for saving the distance value.
 double distanceValue = 0;
-int colourValue= 0;
+//The integer used to save the end colour value that will be used for
+// distance calculations.
+int colourValue = 0;
 
 //Variables for the cyclic buffer array used for averaging.
 const int CYCLIC_BUFFER_SIZE = 10;
 
 //First cyclic buffer to find average of sums.
-int cyclicBuffer[CYCLIC_BUFFER_SIZE];
-uint cyclicBufferIndex = 0;
-int cyclicBufferSum = 0;
-int cyclicBufferAverage = 0;
+int cyclicBuffer[CYCLIC_BUFFER_SIZE]; //Create a new array with size CYCLIC_BUFFER_SIZE
+uint cyclicBufferIndex = 0; //Index of cyclicBuffer
+int cyclicBufferSum = 0; //The sum of values within cyclicBuffer
+int cyclicBufferAverage = 0; //The average of the values within cyclicBuffer
 
 //Second cyclic buffer to average the averages.
-int cyclicBuffer2[CYCLIC_BUFFER_SIZE];
-uint cyclicBuffer2Index = 0;
-int cyclicBuffer2Sum = 0;
-int cyclicBuffer2Average = 0;
+int cyclicBuffer2[CYCLIC_BUFFER_SIZE]; //Create a new array with size CYCLIC_BUFFER_SIZE
+uint cyclicBuffer2Index = 0; //Index of cyclicBuffer2
+int cyclicBuffer2Sum = 0; //The sum of values within cyclicBuffer2
+int cyclicBuffer2Average = 0; //The average of the values within cyclicBuffer2
 
 //A boolean for whether the displayed value should be averaged or live
 bool averaging = false;
@@ -85,7 +87,7 @@ void ConnectAndSend() {
     //Create new socket to the owl.
     u_sock = OwlCommsInit ( PORT, PiADDR);
 
-    //Toe-in values.
+    //Apply toe-in values where neccesary, else just set normal values.
     const int Rx=1520 - 20;
     const int Ry=1450;
     const int Lx=1540 + 20;
@@ -172,20 +174,23 @@ double DistanceEquation(int brightness) {
 
 int main(int argc, char** argv)
 {
+    //Initially, connect to the PI and send the default values (+toe-ins)
     ConnectAndSend();
 
     std::string intrinsic_filename = "../../Data/intrinsics.xml";
     std::string extrinsic_filename = "../../Data/extrinsics.xml";
 
+    // Set the default values for the disparity algorithms
     enum { STEREO_BM = 0, STEREO_SGBM = 1, STEREO_HH = 2, STEREO_VAR = 3, STEREO_3WAY = 4 };
     const int ALGORITHM = STEREO_SGBM; //PFC always do SGBM - colour
     //N-disparities and block size referenced in the lecture.
     const int NO_OF_DISP = 256; //256 is default.
     const int SAD_BLOCK_SIZE = 5; //3 is default.
-    const bool IS_DISPLAY = false;
-    const float SCALE_FACTOR = 1.0;
-    const int COLOUR_MODE = ALGORITHM == STEREO_BM ? 0 : -1;
+    const bool IS_DISPLAY = false; //false is default
+    const float SCALE_FACTOR = 1.0; //1.0 is default
+    const int COLOUR_MODE = ALGORITHM == STEREO_BM ? 0 : -1; //ALGORITHM == STEREO_BM ? 0 : -1 is default.
 
+    //This is the variable the sum value will be stored in.
     int colourSum = 0;
 
     Ptr<StereoBM> bm = StereoBM::create(16, 9);
@@ -284,10 +289,10 @@ int main(int argc, char** argv)
             //Put into an if statement to reduce performance hit by only updating rectangles
             //Only if the size has been changed.
             if (targetSizeChanged) {
-                //Update rectangles.
+                //Update rectangles locations + sizes
                 target = Rect(target.x, target.y, targetSize, targetSize);
                 displayTarget = Rect(displayTarget.x, displayTarget.y, targetSize, targetSize);
-
+                //then we can set the state back to false, which will avoid updating them on the next loop.
                 targetSizeChanged = false;
             }
 
@@ -368,6 +373,7 @@ int main(int argc, char** argv)
 
             //Reset wrongCount before use.
             wrongCount = 0;
+
             //Loop through every pixel on target.
             for (int i = 0; i < targetSize; i++) {
                 for (int j = 0; j < targetSize; j++) {
@@ -388,6 +394,7 @@ int main(int argc, char** argv)
             if (wrongCount != pow(targetSize, 2)) {
                 colourSum = colourSum / (pow(targetSize, 2) - wrongCount);
             } else {
+                // Otherwise, ignore wrongCount
                 colourSum = colourSum / pow(targetSize, 2);
             }
 
