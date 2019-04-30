@@ -273,13 +273,13 @@ int main(int argc, char *argv[])
 
 
         // Move left eye based on salience, move right eye to be parallel with left eye
-        ServoRel(((Lx - LxC + RxC - Rx) / DEG2PWM) + lxDifference * 1,
-                 -((LyC - Ly + RyC - Ry) / DEG2PWM) + lyDifference * 1,
+        ServoRel(0,
+                 0,
                  lxDifference * 1,
                  lyDifference * 1,
                  (Lx - LxC) / 100);
 
-        waitKey(200);
+        waitKey(100);
         //Capture a frame from the stream
         if (!cap.read(Frame)) {
             cout << "Could not open the input video: " << source << endl;
@@ -308,12 +308,10 @@ int main(int argc, char *argv[])
 
         TrackCorrelTarget(OWL);
 
-
         //Move the eyes
         imshow("target", OWLtempl);
         imshow("Right", Right);
         imshow("Left", Left);
-
 
         // Update Familarity Map
         // Familiar map to inhibit salient targets once observed (this is a global map)
