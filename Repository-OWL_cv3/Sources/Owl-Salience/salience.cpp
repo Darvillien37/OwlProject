@@ -187,11 +187,11 @@ int main(int argc, char *argv[])
     {//Main processing loop
         //cout << "Capture Frame" << endl;
         //==========================================Capture Frame============================================
-        //for(int f = 0; f < 15; ++f){
-        if (!cap.read(Frame)) {
-            cout << "Could not open the input video: " << source << endl;
+        for(int f = 0; f < 15; ++f){
+            if (!cap.read(Frame)) {
+                cout << "Could not open the input video: " << source << endl;
+            }
         }
-        //}
         
         Mat FrameFlpd;
         cv::flip(Frame, FrameFlpd, 1);     // Note that Left/Right are reversed now
@@ -302,6 +302,7 @@ int main(int argc, char *argv[])
         imshow("target", OWLtempl);
         imshow("Right", Right);
         imshow("Left", Left);
+        imshow("correl", OWL.Result);
 
         // Update Familarity Map
         // Familiar map to inhibit salient targets once observed (this is a global map)
@@ -369,7 +370,7 @@ int main(int argc, char *argv[])
         cvCreateTrackbar("foveaW", "Control", &foveaWeight, 100);
 
         
-        waitKey(100);
+        waitKey();
     }
 }
 
@@ -476,6 +477,8 @@ string ServoRel(double DEGRx, double DEGRy, double DEGLx, double DEGLy, double D
 
 //Moves the right eye to the target.
 string TrackCorrelTarget (OwlCorrel OWL){
+
+
     ostringstream CMDstream;
     string CMD, RxPacket;
 
