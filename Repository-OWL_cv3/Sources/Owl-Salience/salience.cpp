@@ -245,32 +245,55 @@ int main(int argc, char *argv[])
         minMaxLoc(Salience, &minVal, &maxVal, &minLoc, &maxLoc, Mat());
 
         // Calculate relative servo correction and magnitude of correction
-        //double lxDifference = static_cast<double>((maxLoc.x - (IMAGE_WIDTH / 2)) * PX2DEG);
-        //double lyDifference = static_cast<double>((maxLoc.y - (IMAGE_HEIGHT / 2)) * PX2DEG);
+        double lxDifference = static_cast<double>((maxLoc.x - (IMAGE_WIDTH / 2)) * PX2DEG);
+        double lyDifference = static_cast<double>((maxLoc.y - (IMAGE_HEIGHT / 2)) * PX2DEG);
         
         //Set the target round the most salient area
         target = Rect( Point(maxLoc.x - 32, maxLoc.y - 32),
                        Point(maxLoc.x + 32, maxLoc.y + 32));
 
-        //set the target from the left eye.
-        OWLtempl = Left(target);
+
+        // Move left eye based on salience, move right eye to be parallel with left eye
+        ServoRel(((Lx - LxC + RxC - Rx) / DEG2PWM) + lxDifference * 1,
+                 -((LyC - Ly + RyC - Ry) / DEG2PWM) + lyDifference * 1,
+                 lxDifference * 1,
+                 lyDifference * 1,
+                 (Lx - LxC) / 100);
+
+        waitKey(200);
+        //Capture a frame from the stream
+        if (!cap.read(Frame)) {
+            cout << "Could not open the input video: " << source << endl;
+        }
+        cv::flip(Frame, FrameFlpd, 1);     // Note that Left/Right are reversed now
+        // Split into LEFT and RIGHT images from the stereo pair sent as one MJPEG iamge
+        Left = FrameFlpd(Rect(0, 0, 640, 480));         // Using a rectangle
+        remap(Left, Left, map1L, map2L, INTER_LINEAR);  // Apply camera calibration
+        Right = FrameFlpd(Rect(640, 0, 640, 480));      // Using a rectangle
+        remap(Right, Right, map1R, map2R, INTER_LINEAR);// Apply camera calibration
+
+        //set the template as the centerpoint of the left eye.
+        OWLtempl = Left(CENTRE_TARGET);
+
         //correlate the images.
-        OwlCorrel OWL = Owl_matchTemplate(Right, Left, OWLtempl);
+        OwlCorrel OWL = Owl_matchTemplate(Right, OWLtempl);
 
         //Draw rectangle on most salient area
         rectangle(Left,
-            target,
-            Scalar::all(255),
-            2, 8, 0);
+                  target,
+                  Scalar::all(255),
+                  2, 8, 0);
         //Draw a circle on the centers of the video windows
-         circle(Left, Point(IMAGE_WIDTH/2,IMAGE_HEIGHT/2), 5, Scalar(0,255,0), 1);
-         circle(Right, Point(IMAGE_WIDTH/2,IMAGE_HEIGHT/2), 5, Scalar(0,255,0), 1);
+        circle(Left, Point(IMAGE_WIDTH/2,IMAGE_HEIGHT/2), 5, Scalar(0,255,0), 1);
+        circle(Right, Point(IMAGE_WIDTH/2,IMAGE_HEIGHT/2), 5, Scalar(0,255,0), 1);
 
+        TrackCorrelTarget(OWL);
+
+
+        //Move the eyes
         imshow("target", OWLtempl);
         imshow("Right", Right);
         imshow("Left", Left);
-
-        TrackCorrelTarget(OWL);//Move the eyes
 
 
         // Update Familarity Map
@@ -318,21 +341,21 @@ int main(int argc, char *argv[])
         //cout << "Global View" << endl;
         if(GlobalPos != Point(0, 0)){
 
-//            if(GlobalPos.x < 0){
-//               GlobalPos.x = 0;
-//            }
+            //            if(GlobalPos.x < 0){
+            //               GlobalPos.x = 0;
+            //            }
 
-//            if (GlobalPos.y < 0){
-//                GlobalPos.y = 0;
-//            }
+            //            if (GlobalPos.y < 0){
+            //                GlobalPos.y = 0;
+            //            }
 
-//            if(GlobalPos.x > (PanView.rows - 1)) {
-//                GlobalPos.x = PanView.rows - 1;
-//            }
+            //            if(GlobalPos.x > (PanView.rows - 1)) {
+            //                GlobalPos.x = PanView.rows - 1;
+            //            }
 
-//            if(GlobalPos.y > PanView.cols  - 1) {
-//                GlobalPos.y = PanView.cols  - 1;
-//            }
+            //            if(GlobalPos.y > PanView.cols  - 1) {
+            //                GlobalPos.y = PanView.cols  - 1;
+            //            }
 
             Mat LeftCrop = Left(Rect(220, 140, 200, 200));//image cropped to minimize image stitching artifacts
 
@@ -461,30 +484,19 @@ string ServoRel(double DEGRx, double DEGRy, double DEGLx, double DEGLy, double D
     return (retSTR);
 }
 
+//Calculates PWM position of right eye, based off OwlCorrel.
 string TrackCorrelTarget (OwlCorrel OWL){
     ostringstream CMDstream;
-    string CMD, RxPacket;    
+    string CMD, RxPacket;
 
-    //================= Left side =================
-    double LxScaleV = LxRangeV / static_cast<double>(IMAGE_WIDTH); //PWM range /pixel range
-    double Xoff =  (OWL.MatchL.x - (IMAGE_WIDTH / 2) + OWLtempl.cols / 2) / LxScaleV; // compare to centre of image
-    double LxOld = Lx;
-    Lx = static_cast<int>(LxOld - Xoff * KPX); // roughly 300 servo offset = 320 [pixel offset]
-
-    double LyScaleV = LyRangeV / static_cast<double>(IMAGE_HEIGHT); //PWM range /pixel range
-    double Yoff = ((OWL.MatchL.y - (IMAGE_HEIGHT / 2) + OWLtempl.rows / 2) / LyScaleV) * KPY; // compare to centre of image
-    double LyOld = Ly;
-    Ly = static_cast<int>(LyOld - Yoff); // roughly 300 servo offset = 320 [pixel offset]    
-
-
-    //================= Right side =================
+    //================= calculate PWM position of right eye =================
     double RxScaleV = RxRangeV / static_cast<double>(IMAGE_WIDTH); //PWM range /pixel range
-    double RxOff = (OWL.MatchR.x - (IMAGE_WIDTH / 2)  + OWLtempl.cols / 2) / RxScaleV ; // compare to centre of image
+    double RxOff = (OWL.Match.x - (IMAGE_WIDTH / 2)  + OWLtempl.cols / 2) / RxScaleV ; // compare to centre of image
     double RxOld = Rx;
     Rx = static_cast<int>(RxOld + RxOff * KPX); // roughly 300 servo offset = 320 [pixel offset]
 
     double RyScaleV = RyRangeV / static_cast<double>(IMAGE_HEIGHT); //PWM range /pixel range
-    double RyOff = ((OWL.MatchR.y - (IMAGE_HEIGHT / 2) + OWLtempl.rows / 2) / RyScaleV) * KPY ; // compare to centre of image
+    double RyOff = ((OWL.Match.y - (IMAGE_HEIGHT / 2) + OWLtempl.rows / 2) / RyScaleV) * KPY ; // compare to centre of image
     double RyOld = Ry;
     Ry = static_cast<int>(RyOld - RyOff); // roughly 300 servo offset = 320 [pixel offset]
 
@@ -504,8 +516,8 @@ string TrackCorrelTarget (OwlCorrel OWL){
                 (Ry / DEG2PWM), // Ry -- the right eye Y servo has inverted direction compared to left.
                 (Lx / DEG2PWM),// Lx
                 (Ly / DEG2PWM), // Ly
-                NeckC / DEG2PWM
-                ); // NECK .. no neck motion as yet
+                Neck / DEG2PWM
+                );
     return (retSTR);
 }
 
