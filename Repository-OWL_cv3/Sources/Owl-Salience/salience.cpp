@@ -300,19 +300,22 @@ int main(int argc, char *argv[])
 
         //correlate the right image using the centre point of the left eye.
         OwlCorrel OWL = Owl_matchTemplate(Right, OWLtempl);
+  
+		//Now move the right eye.
+		TrackCorrelTarget(OWL);
+
 
         //Draw rectangle on most salient area
         rectangle(Left,
                   target,
                   Scalar::all(255),
                   2, 8, 0);
-        //Draw a circle on the centers of the video windows
+        //Draw a circle on the centres of the video windows
         circle(Left, Point(IMAGE_WIDTH/2,IMAGE_HEIGHT/2), 5, Scalar(0,255,0), 1);
         circle(Right, Point(IMAGE_WIDTH/2,IMAGE_HEIGHT/2), 5, Scalar(0,255,0), 1);
+      
 
-        TrackCorrelTarget(OWL);
-
-        //Move the eyes
+        //show the eyes
         imshow("target", OWLtempl);
         imshow("Right", Right);
         imshow("Left", Left);
