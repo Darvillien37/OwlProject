@@ -370,7 +370,7 @@ int main(int argc, char *argv[])
         cvCreateTrackbar("foveaW", "Control", &foveaWeight, 100);
 
         
-        waitKey();
+        waitKey(100);
     }
 }
 
