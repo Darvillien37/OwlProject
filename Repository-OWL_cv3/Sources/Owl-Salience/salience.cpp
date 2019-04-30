@@ -359,24 +359,7 @@ int main(int argc, char *argv[])
         
         
         //=======================================Update Global View===========================================
-        //cout << "Global View" << endl;
         if(GlobalPos != Point(0, 0)){
-
-            //            if(GlobalPos.x < 0){
-            //               GlobalPos.x = 0;
-            //            }
-
-            //            if (GlobalPos.y < 0){
-            //                GlobalPos.y = 0;
-            //            }
-
-            //            if(GlobalPos.x > (PanView.rows - 1)) {
-            //                GlobalPos.x = PanView.rows - 1;
-            //            }
-
-            //            if(GlobalPos.y > PanView.cols  - 1) {
-            //                GlobalPos.y = PanView.cols  - 1;
-            //            }
 
             Mat LeftCrop = Left(Rect(220, 140, 200, 200));//image cropped to minimize image stitching artifacts
 
