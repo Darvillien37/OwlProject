@@ -276,7 +276,7 @@ int main(int argc, char *argv[])
                        Point(maxLoc.x + 32, maxLoc.y + 32));
 
 
-        // Move left eye based on salience, move right eye to be parallel with left eye
+        // Move left eye based on salience, but don't move the right eye
         ServoRel(0,
                  0,
                  lxDifference * 1,
@@ -295,10 +295,10 @@ int main(int argc, char *argv[])
         Right = FrameFlpd(Rect(640, 0, 640, 480));      // Using a rectangle
         remap(Right, Right, map1R, map2R, INTER_LINEAR);// Apply camera calibration
 
-        //set the template as the centerpoint of the left eye.
+        //set the template as the centre point of the left eye.
         OWLtempl = Left(CENTRE_TARGET);
 
-        //correlate the images.
+        //correlate the right image using the centre point of the left eye.
         OwlCorrel OWL = Owl_matchTemplate(Right, OWLtempl);
 
         //Draw rectangle on most salient area
