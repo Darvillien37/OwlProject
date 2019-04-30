@@ -389,7 +389,7 @@ int main(int argc, char *argv[])
 //Summary:
 //      The absolute values, in degrees, the servos should move to. Also does bound checking.
 string ServoAbs(double DEGRx, double DEGRy, double DEGLx, double DEGLy, double DEGNeck){
-    int Rx, Ry, Lx, Ly, Neck;
+    //int Rx, Ry, Lx, Ly, Neck;
 
     Rx = static_cast<int>(DEGRx * DEG2PWM);
     Ry = static_cast<int>(DEGRy * DEG2PWM);
