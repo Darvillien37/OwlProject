@@ -87,6 +87,10 @@ static int DoGLowWeight = 30; //DoG edge detection
 static int FamiliarWeight = 5; //Familiarity of the target, how much has the owl focused on this before
 static int foveaWeight = 50; //Distance from fovea (center)
 
+double lxDifference = 0;
+double lyDifference = 0;
+int loopCounter = 0;
+
 
 int main(int argc, char *argv[])
 {
@@ -213,6 +217,25 @@ int main(int argc, char *argv[])
         GlobalPos.x = static_cast<int>(900 + ((-(Neck - NeckC) + (Lx - LxC)) / DEG2PWM) / PX2DEG);
         GlobalPos.y = static_cast<int>(500 + ((Ly - LyC) / DEG2PWM) / PX2DEG);
 
+        if(GlobalPos.x < 0)
+        {
+            GlobalPos .x = 0;
+        }
+        if(GlobalPos.y < 0)
+        {
+            GlobalPos.y = 0;
+        }
+
+        if (GlobalPos.x > familiar.size().width - Left.size().width - 1)
+        {
+            GlobalPos.x = familiar.size().width - Left.size().width - 1;
+        }
+
+        if (GlobalPos.y > familiar.size().height - Left.size().height - 1)
+        {
+            GlobalPos.y = familiar.size().height - Left.size().height - 1;
+        }
+
         Mat familiarLocal = familiar(Rect(GlobalPos.x, GlobalPos.y, Left.cols, Left.rows));
 
         cout << "X: "<< GlobalPos.x << "\tY: " << GlobalPos.y << endl;
@@ -245,33 +268,40 @@ int main(int argc, char *argv[])
         minMaxLoc(Salience, &minVal, &maxVal, &minLoc, &maxLoc, Mat());
 
         // Calculate relative servo correction and magnitude of correction
-        //double lxDifference = static_cast<double>((maxLoc.x - (IMAGE_WIDTH / 2)) * PX2DEG);
-        //double lyDifference = static_cast<double>((maxLoc.y - (IMAGE_HEIGHT / 2)) * PX2DEG);
-        
+        lxDifference = static_cast<double>((maxLoc.x - (IMAGE_WIDTH / 2)) * PX2DEG);
+        lyDifference = static_cast<double>((maxLoc.y - (IMAGE_HEIGHT / 2)) * PX2DEG);
+
         //Set the target round the most salient area
         target = Rect( Point(maxLoc.x - 32, maxLoc.y - 32),
                        Point(maxLoc.x + 32, maxLoc.y + 32));
-
         //set the target from the left eye.
         OWLtempl = Left(target);
-        //correlate the images.
-        OwlCorrel OWL = Owl_matchTemplate(Right, Left, OWLtempl);
 
-        //Draw rectangle on most salient area
+        //correlate the images.
+        OwlCorrel OWL = Owl_matchTemplate(Right, OWLtempl);
+
+        // Move left eye based on salience, do not move the right eye
+        ServoRel(0,
+                 0,
+                 lxDifference,
+                 lyDifference,
+                 (Lx - LxC) / 100);
+
+        //Now move the right eye to the most salient target, via correlation
+        TrackCorrelTarget(OWL);
+
         rectangle(Left,
-            target,
-            Scalar::all(255),
-            2, 8, 0);
+                  target,
+                  Scalar::all(255),
+                  2, 8, 0);
+
         //Draw a circle on the centers of the video windows
-         circle(Left, Point(IMAGE_WIDTH/2,IMAGE_HEIGHT/2), 5, Scalar(0,255,0), 1);
-         circle(Right, Point(IMAGE_WIDTH/2,IMAGE_HEIGHT/2), 5, Scalar(0,255,0), 1);
+        circle(Left, Point(IMAGE_WIDTH/2,IMAGE_HEIGHT/2), 5, Scalar(0,255,0), 1);
+        circle(Right, Point(IMAGE_WIDTH/2,IMAGE_HEIGHT/2), 5, Scalar(0,255,0), 1);
 
         imshow("target", OWLtempl);
         imshow("Right", Right);
         imshow("Left", Left);
-
-        TrackCorrelTarget(OWL);//Move the eyes
-
 
         // Update Familarity Map
         // Familiar map to inhibit salient targets once observed (this is a global map)
@@ -318,22 +348,6 @@ int main(int argc, char *argv[])
         //cout << "Global View" << endl;
         if(GlobalPos != Point(0, 0)){
 
-//            if(GlobalPos.x < 0){
-//               GlobalPos.x = 0;
-//            }
-
-//            if (GlobalPos.y < 0){
-//                GlobalPos.y = 0;
-//            }
-
-//            if(GlobalPos.x > (PanView.rows - 1)) {
-//                GlobalPos.x = PanView.rows - 1;
-//            }
-
-//            if(GlobalPos.y > PanView.cols  - 1) {
-//                GlobalPos.y = PanView.cols  - 1;
-//            }
-
             Mat LeftCrop = Left(Rect(220, 140, 200, 200));//image cropped to minimize image stitching artifacts
 
             LeftCrop.copyTo(PanView(Rect(GlobalPos.x, GlobalPos.y, LeftCrop.cols, LeftCrop.rows)));
@@ -354,9 +368,8 @@ int main(int argc, char *argv[])
         cvCreateTrackbar("FamiliarW", "Control", &FamiliarWeight, 100);
         cvCreateTrackbar("foveaW", "Control", &foveaWeight, 100);
 
-
         
-        waitKey(10);
+        waitKey(100);
     }
 }
 
@@ -366,7 +379,7 @@ int main(int argc, char *argv[])
 //Summary:
 //      The absolute values, in degrees, the servos should move to. Also does bound checking.
 string ServoAbs(double DEGRx, double DEGRy, double DEGLx, double DEGLy, double DEGNeck){
-    int Rx, Ry, Lx, Ly, Neck;
+    // int Rx, Ry, Lx, Ly, Neck;
 
     Rx = static_cast<int>(DEGRx * DEG2PWM);
     Ry = static_cast<int>(DEGRy * DEG2PWM);
@@ -461,33 +474,23 @@ string ServoRel(double DEGRx, double DEGRy, double DEGLx, double DEGLy, double D
     return (retSTR);
 }
 
+//Moves the right eye to the target.
 string TrackCorrelTarget (OwlCorrel OWL){
     ostringstream CMDstream;
-    string CMD, RxPacket;    
+    string CMD, RxPacket;
 
-    //================= Left side =================
-    double LxScaleV = LxRangeV / static_cast<double>(IMAGE_WIDTH); //PWM range /pixel range
-    double Xoff =  (OWL.MatchL.x - (IMAGE_WIDTH / 2) + OWLtempl.cols / 2) / LxScaleV; // compare to centre of image
-    double LxOld = Lx;
-    Lx = static_cast<int>(LxOld - Xoff * KPX); // roughly 300 servo offset = 320 [pixel offset]
-
-    double LyScaleV = LyRangeV / static_cast<double>(IMAGE_HEIGHT); //PWM range /pixel range
-    double Yoff = ((OWL.MatchL.y - (IMAGE_HEIGHT / 2) + OWLtempl.rows / 2) / LyScaleV) * KPY; // compare to centre of image
-    double LyOld = Ly;
-    Ly = static_cast<int>(LyOld - Yoff); // roughly 300 servo offset = 320 [pixel offset]    
-
-
-    //================= Right side =================
+    // find the PWM values for the right eye.
     double RxScaleV = RxRangeV / static_cast<double>(IMAGE_WIDTH); //PWM range /pixel range
-    double RxOff = (OWL.MatchR.x - (IMAGE_WIDTH / 2)  + OWLtempl.cols / 2) / RxScaleV ; // compare to centre of image
+    double RxOff = (OWL.Match.x - (IMAGE_WIDTH / 2)  + OWLtempl.cols / 2) / RxScaleV ; // compare to centre of image
     double RxOld = Rx;
     Rx = static_cast<int>(RxOld + RxOff * KPX); // roughly 300 servo offset = 320 [pixel offset]
 
     double RyScaleV = RyRangeV / static_cast<double>(IMAGE_HEIGHT); //PWM range /pixel range
-    double RyOff = ((OWL.MatchR.y - (IMAGE_HEIGHT / 2) + OWLtempl.rows / 2) / RyScaleV) * KPY ; // compare to centre of image
+    double RyOff = ((OWL.Match.y - (IMAGE_HEIGHT / 2) + OWLtempl.rows / 2) / RyScaleV) * KPY ; // compare to centre of image
     double RyOld = Ry;
     Ry = static_cast<int>(RyOld - RyOff); // roughly 300 servo offset = 320 [pixel offset]
 
+    //Vars for debugging
     double LxCopy = Lx;
     double LyCopy = Ly;
     double RxCopy = Rx;
@@ -495,17 +498,37 @@ string TrackCorrelTarget (OwlCorrel OWL){
     double NeckCopy = NeckC;
 
 
-    
-    //** ACTION
-    // move to get minimise distance from centre of both images, ie verge in to target
-    // move servos to position
-    string retSTR = ServoAbs(
-                (Rx / DEG2PWM), //Rx
-                (Ry / DEG2PWM), // Ry -- the right eye Y servo has inverted direction compared to left.
-                (Lx / DEG2PWM),// Lx
-                (Ly / DEG2PWM), // Ly
-                NeckC / DEG2PWM
-                ); // NECK .. no neck motion as yet
+    string retSTR = "";
+    const int MAX_CYCLES = 10;
+    //Every x amount of cycles round, we reset the right eye to be parelel.
+    if(loopCounter >= MAX_CYCLES)
+    {
+        loopCounter = 0;
+        cout << "Resetting right eye parelel." << endl;
+        //move right eye to be parallel with left eye
+        retSTR = ServoRel(
+                    ((Lx - LxC + RxC - Rx) / DEG2PWM) + lxDifference * 1,
+                    -((LyC - Ly + RyC - Ry) / DEG2PWM) + lyDifference * 1,
+                    0,
+                    0,
+                    0);
+
+
+    }
+    else
+    {
+        //** ACTION
+        // move to get minimise distance from centre of both images, ie verge in to target
+        // move servos to position
+        retSTR = ServoAbs(
+                    (Rx / DEG2PWM), //Rx
+                    (Ry / DEG2PWM), // Ry -- the right eye Y servo has inverted direction compared to left.
+                    (Lx / DEG2PWM),// Lx
+                    (Ly / DEG2PWM), // Ly
+                    Neck / DEG2PWM
+                    );
+    }
+    loopCounter ++;
     return (retSTR);
 }
 
