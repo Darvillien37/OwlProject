@@ -131,9 +131,6 @@ int main(int argc, char *argv[])
     Ly = LyC;
     Neck= NeckC;
 
-    /***********************
- * LOOP continuously for testing
- */
 
     u_sock = OwlCommsInit ( PORT, PiADDR);
 
