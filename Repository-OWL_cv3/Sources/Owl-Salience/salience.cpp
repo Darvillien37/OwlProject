@@ -213,6 +213,25 @@ int main(int argc, char *argv[])
         GlobalPos.x = static_cast<int>(900 + ((-(Neck - NeckC) + (Lx - LxC)) / DEG2PWM) / PX2DEG);
         GlobalPos.y = static_cast<int>(500 + ((Ly - LyC) / DEG2PWM) / PX2DEG);
 
+        if(GlobalPos.x < 0)
+        {
+            GlobalPos .x = 0;
+        }
+        if(GlobalPos.y < 0)
+        {
+            GlobalPos.y = 0;
+        }
+
+        if (GlobalPos.x > familiar.size().width - Left.size().width - 1)
+        {
+            GlobalPos.x = familiar.size().width - Left.size().width - 1;
+        }
+
+        if (GlobalPos.y > familiar.size().height - Left.size().height - 1)
+        {
+            GlobalPos.y = familiar.size().height - Left.size().height - 1;
+        }
+
         Mat familiarLocal = familiar(Rect(GlobalPos.x, GlobalPos.y, Left.cols, Left.rows));
 
         cout << "X: "<< GlobalPos.x << "\tY: " << GlobalPos.y << endl;
