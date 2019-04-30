@@ -87,6 +87,10 @@ static int DoGLowWeight = 30; //DoG edge detection
 static int FamiliarWeight = 5; //Familiarity of the target, how much has the owl focused on this before
 static int foveaWeight = 50; //Distance from fovea (center)
 
+double lxDifference = 0;
+double lyDifference = 0;
+
+int loopCounter = 0;
 
 int main(int argc, char *argv[])
 {
@@ -264,8 +268,8 @@ int main(int argc, char *argv[])
         minMaxLoc(Salience, &minVal, &maxVal, &minLoc, &maxLoc, Mat());
 
         // Calculate relative servo correction and magnitude of correction
-        double lxDifference = static_cast<double>((maxLoc.x - (IMAGE_WIDTH / 2)) * PX2DEG);
-        double lyDifference = static_cast<double>((maxLoc.y - (IMAGE_HEIGHT / 2)) * PX2DEG);
+        lxDifference = static_cast<double>((maxLoc.x - (IMAGE_WIDTH / 2)) * PX2DEG);
+        lyDifference = static_cast<double>((maxLoc.y - (IMAGE_HEIGHT / 2)) * PX2DEG);
         
         //Set the target round the most salient area
         target = Rect( Point(maxLoc.x - 32, maxLoc.y - 32),
@@ -524,17 +528,37 @@ string TrackCorrelTarget (OwlCorrel OWL){
     double NeckCopy = NeckC;
 
 
-    
-    //** ACTION
-    // move to get minimise distance from centre of both images, ie verge in to target
-    // move servos to position
-    string retSTR = ServoAbs(
-                (Rx / DEG2PWM), //Rx
-                (Ry / DEG2PWM), // Ry -- the right eye Y servo has inverted direction compared to left.
-                (Lx / DEG2PWM),// Lx
-                (Ly / DEG2PWM), // Ly
-                Neck / DEG2PWM
-                );
+    string retSTR = "";
+    const int MAX_CYCLES = 10;
+    //Every x amount of cycles round, we reset the right eye to be parelel.
+    if(loopCounter >= MAX_CYCLES)
+    {
+        loopCounter = 0;
+        cout << "Resetting right eye parelel." << endl;
+        //move right eye to be parallel with left eye
+        retSTR = ServoRel(
+                    ((Lx - LxC + RxC - Rx) / DEG2PWM) + lxDifference * 1,
+                    -((LyC - Ly + RyC - Ry) / DEG2PWM) + lyDifference * 1,
+                    0,
+                    0,
+                    0);
+
+
+    }
+    else
+    {
+        //** ACTION
+        // move to get minimise distance from centre of both images, ie verge in to target
+        // move servos to position
+        retSTR = ServoAbs(
+                    (Rx / DEG2PWM), //Rx
+                    (Ry / DEG2PWM), // Ry -- the right eye Y servo has inverted direction compared to left.
+                    (Lx / DEG2PWM),// Lx
+                    (Ly / DEG2PWM), // Ly
+                    Neck / DEG2PWM
+                    );
+    }
+    loopCounter ++;
     return (retSTR);
 }
 
