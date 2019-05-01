@@ -29,6 +29,7 @@ struct OwlCorrel {
 Mat OWLtempl; // used in correlation
 Rect target = Rect(320-32, 240-32, 64, 64); // target is at the centre of the camera FOV
 Rect textBox = Rect(320-155, 433, 310, 40); // target is at the centre of the camera FOV
+Rect resampleBox = Rect(65, 20, 520, 33); // target is at the centre of the camera FOV
 // drawn over whatever is in the centre of the FOV, to act as a template
 
 // Overlays a template over 2 images and finds the best match for the template to be.

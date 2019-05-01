@@ -36,6 +36,12 @@ bool trunkateOnSend = true;
 //Folder to store images in.
 string const IMAGES_FOLDER = "../../Data/OurImages/";
 
+// Counts loops to acquire new target.
+int trackingLoopCount = 0;
+
+// Boolean for whether we should re-sample targets.
+bool resample = false;
+
 //Sent the servo data to the OWL
 void SendData()
 {
@@ -222,20 +228,16 @@ int main(int argc, char *argv[])
                 Ly = LyC;
                 Neck= NeckC;
                 break;
-
             case 'b':
                 trunkateOnSend = !trunkateOnSend;
                 cout << "Setting Trunkate on send: " << (trunkateOnSend ? "True" : "False") << endl;
                 break;
-
-
             case 't': // lowercase 't'
                 OWLtempl= Right(target);
                 //imshow("templ",OWLtempl);
                 waitKey(1);
                 currentMode = TRACKING; // quit loop and start tracking target
                 break; // left
-
             case 'c'://Start capturing the images
                 Rx = RxDisparityToeIn;
                 Lx = LxDisparityToeIn;
@@ -245,7 +247,6 @@ int main(int argc, char *argv[])
                 Rx = RxC;
                 Lx = LxC;
                 break;
-
             case 27://Escape key
                 cout << "Exiting Application";
                 currentMode = EXITING;
@@ -262,6 +263,7 @@ int main(int argc, char *argv[])
         //============= Normalised Cross Correlation ==========================
         // While the the application is tracking.
         while (currentMode == TRACKING) {
+            trackingLoopCount++;
             //Read a frame from the video feed.
             if (!cap.read(Frame))
             {
@@ -276,6 +278,25 @@ int main(int argc, char *argv[])
 
             //Mach the template for both eyes
             OwlCorrel OWL = Owl_matchTemplate(Right, Left, OWLtempl);
+
+            // This is to capture a new target on nth frame (20 default)
+            const int NEW_TARGET_CAPTURE_COUNT = 20;
+
+            //Capture a new target template every NEW_TARGET_CAPTURE_COUNT amount of time round the loop
+            if (resample) {
+                if(trackingLoopCount >= NEW_TARGET_CAPTURE_COUNT)
+                {
+                     // Move target to the best match
+                     target.x = OWL.MatchR.x;
+                     target.y = OWL.MatchR.y;
+                     // Get new target
+                     OWLtempl= Right(target);
+                     // Reset counter
+                     trackingLoopCount = 0;
+
+                }
+            }
+
 
             Mat RightCopy;
             Right.copyTo(RightCopy);
@@ -297,6 +318,9 @@ int main(int argc, char *argv[])
                 case 'm':// 'm' key
                     currentMode = MANUAL;//Signal to return back to manual mode.
                     break;
+                case 'r':
+                    resample = !resample;
+                break;
             }
 
             // Tracking rates for both eyes, can't be too high or will overshoot target.
@@ -325,11 +349,16 @@ int main(int argc, char *argv[])
             double RyOld=Ry;
             Ry=static_cast<int>(RyOld - RyOff); // roughly 300 servo offset = 320 [pixel offset]
 
+
+            //Then calulate the distance for the next loop.
+            CalculateDistance();
             // Create the string, for the distance value, calls calcDistance()
             string distanceString = "Distance: " + to_string((int)calcDistance) + "mm";
 
-            // Draw rectangle for text.
+            // Draw rectangle for distance text.
             rectangle( RightCopy, textBox, Scalar::all(0), -1, 8, 0);
+            // Draw rectangle for resample state text.
+            rectangle( RightCopy, resampleBox, Scalar::all(0), -1, 8, 0);
 
             // Check to see if eyes are diverging on a target.
             // If not, move the neck towards the direction the eyes
@@ -350,17 +379,19 @@ int main(int argc, char *argv[])
 
             //Then we write the distance string on to the screen.
             putText(RightCopy, distanceString, cvPoint(165, 465), FONT_HERSHEY_DUPLEX, 1, Scalar::all(255), 0, 0, false);
-
-            //Then calulate the distance for the next loop.
-            CalculateDistance();
+            // coords 520, 33
+            putText(RightCopy, "Resampling: ", cvPoint(70, 45), FONT_HERSHEY_DUPLEX, 0.8, Scalar::all(255), 0, 0, false);
+            putText(RightCopy, resample ? "True" : "False", cvPoint(230, 45), FONT_HERSHEY_DUPLEX, 0.8, Scalar::all(255), 0, 0, false);
+            putText(RightCopy, "| Press 'r' to toggle.", cvPoint(320, 45), FONT_HERSHEY_DUPLEX, 0.8, Scalar::all(255), 0, 0, false);
             //Output all of the variables to console (For debugging and monitoring)
             cout << "Rx: " << Rx << "   Lx: " << Lx << "   Deg2Pwm: " << Deg2Pwm << "   Distance: " << calcDistance << "mm" << endl;
 
             //Display all of the important windows,
             imshow("Owl-L", Left);
-            imshow("Owl-R", RightCopy);
             imshow("Correl L", OWL.ResultL);
             imshow("CorrelR", OWL.ResultR);
+            imshow("Owl-R", RightCopy);
+            imshow("Template", OWLtempl);
 
             // send the servo data to the PI.
             SendData();
