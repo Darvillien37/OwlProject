@@ -310,19 +310,6 @@ int main(int argc, char *argv[])
             circle(Left,Point(320,240),5,Scalar(0,255,0),1);
             circle(RightCopy,Point(320,240),5,Scalar(0,255,0),1);
 
-            waitKey(1);
-            int key = waitKey(10);
-            //if the user has pressed a key,
-            switch (key)
-            {   // and the user has pressed the 'm' key...
-                case 'm':// 'm' key
-                    currentMode = MANUAL;//Signal to return back to manual mode.
-                    break;
-                case 'r':
-                    resample = !resample;
-                break;
-            }
-
             // Tracking rates for both eyes, can't be too high or will overshoot target.
             double KPx=0.13; // track rate X
             double KPy=0.13; // track rate Y
@@ -355,11 +342,6 @@ int main(int argc, char *argv[])
             // Create the string, for the distance value, calls calcDistance()
             string distanceString = "Distance: " + to_string((int)calcDistance) + "mm";
 
-            // Draw rectangle for distance text.
-            rectangle( RightCopy, textBox, Scalar::all(0), -1, 8, 0);
-            // Draw rectangle for resample state text.
-            rectangle( RightCopy, resampleBox, Scalar::all(0), -1, 8, 0);
-
             // Check to see if eyes are diverging on a target.
             // If not, move the neck towards the direction the eyes
             // are looking in.
@@ -376,6 +358,11 @@ int main(int argc, char *argv[])
                 // Move the neck to theleft.
                 Neck = Neck + 5;
             }
+
+            // Draw rectangle for distance text.
+            rectangle( RightCopy, textBox, Scalar::all(0), -1, 8, 0);
+            // Draw rectangle for resample state text.
+            rectangle( RightCopy, resampleBox, Scalar::all(0), -1, 8, 0);
 
             //Then we write the distance string on to the screen.
             putText(RightCopy, distanceString, cvPoint(165, 465), FONT_HERSHEY_DUPLEX, 1, Scalar::all(255), 0, 0, false);
@@ -395,6 +382,21 @@ int main(int argc, char *argv[])
 
             // send the servo data to the PI.
             SendData();
+
+            waitKey(1);
+            int key = waitKey(10);
+            //if the user has pressed a key,
+            switch (key)
+            {   // and the user has pressed the 'm' key...
+                case 'm':// 'm' key
+                    target.x = 320-32;
+                    target.y = 240-32;
+                    currentMode = MANUAL;//Signal to return back to manual mode.
+                    break;
+                case 'r':
+                    resample = !resample;
+                break;
+            }
 
         } // end of tracking loop
 
