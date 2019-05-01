@@ -328,7 +328,7 @@ int main(int argc, char *argv[])
                  lyDifference * 1,
                  (Lx - LxC) / 100);
 
-        waitKey(100);
+        waitKey(10);
         //Capture a frame from the stream
         if (!cap.read(Frame)) {
             cout << "Could not open the input video: " << source << endl;
