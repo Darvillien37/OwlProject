@@ -50,8 +50,8 @@
 
 #define IMAGE_WIDTH 640
 #define IMAGE_HEIGHT 480
-#define KPX 0.13 // track rate X
-#define KPY 0.13 // track rate Y
+#define KPX 0.25 // track rate X
+#define KPY 0.25// track rate Y
 
 
 #define xOffset  -0.3815
@@ -85,7 +85,7 @@ static string CMD;
 
 //Default feature map weights
 static int ColourWeight = 60; //Saturation and Brightness
-static int DoGHighWeight = 60; //Groups of edges in a small area
+static int DoGHighWeight = 10; //Groups of edges in a small area
 static int DoGLowWeight = 30; //DoG edge detection
 static int SobelWeight = 30; //Sobel edge detection
 static int CannyWeight = 30; //Canny edge detection.
@@ -193,11 +193,10 @@ int main(int argc, char *argv[])
     {//Main processing loop
         //cout << "Capture Frame" << endl;
         //==========================================Capture Frame============================================
-        //for(int f = 0; f < 15; ++f){
         if (!cap.read(Frame)) {
             cout << "Could not open the input video: " << source << endl;
         }
-        //}
+
         
         Mat FrameFlpd;
         cv::flip(Frame, FrameFlpd, 1);     // Note that Left/Right are reversed now
@@ -212,10 +211,16 @@ int main(int argc, char *argv[])
         
         // ======================================CALCULATE FEATURE MAPS ====================================
         //============================================DoG low bandpass Map============================================
-        Mat DoGLow = DoGFilter(LeftGrey, 3, 51);
+        Mat DoGLow = DoGFilter(LeftGrey, 3, 71);
         Mat DoGLow8;
         normalize(DoGLow, DoGLow8, 0, 255, CV_MINMAX, CV_8U);
         imshow("DoG Low", DoGLow8);
+
+        //============================================DoG high bandpass Map============================================
+        Mat DoGHigh = DoGFilter(LeftGrey, 3, 21);
+        Mat DoGHigh8;
+        normalize(DoGHigh, DoGHigh8, 0, 255, CV_MINMAX, CV_8U);
+        imshow("DoG High", DoGHigh8);
 
         // ======================================CALCULATE FEATURE MAPS ====================================
         //============================================Sobel Map============================================
@@ -245,6 +250,7 @@ int main(int argc, char *argv[])
         GlobalPos.x = static_cast<int>(900 + ((-(Neck - NeckC) + (Lx - LxC)) / DEG2PWM) / PX2DEG);
         GlobalPos.y = static_cast<int>(500 + ((Ly - LyC) / DEG2PWM) / PX2DEG);
 
+        //Bound checking for global position
         if(GlobalPos.x < 0)
         {
             GlobalPos .x = 0;
@@ -268,16 +274,16 @@ int main(int argc, char *argv[])
 
         cout << "X: "<< GlobalPos.x << "\tY: " << GlobalPos.y << endl;
 
-
-        //imshow("familiarLocal",familiarLocal);
         
         //====================================Combine maps into saliency map=====================================
-        //cout << "Salience" << endl;
         
-        
-        //Convert 8-bit Mat to 32bit floating point
+        //Conversions for DoG Low filter
         DoGLow.convertTo(DoGLow, CV_32FC1);
         DoGLow *= DoGLowWeight;
+
+        //Conversions for DoG high filter
+        DoGHigh.convertTo(DoGHigh, CV_32FC1);
+        DoGHigh *= DoGHighWeight;
 
         //Conversions for SobelMap
         SobelMap.convertTo(SobelMap, CV_32FC1);
@@ -297,6 +303,7 @@ int main(int argc, char *argv[])
         Mat Salience = cv::Mat(Left.size(), CV_32FC1, 0.0); // init map
 
         add(Salience, DoGLow, Salience);
+        add(Salience, DoGHigh, Salience);
         add(Salience, fovea, Salience);
         add(Salience, SobelMap, Salience);
         add(Salience, CannyMap, Salience);
@@ -304,8 +311,6 @@ int main(int argc, char *argv[])
 
         Salience = Salience.mul(familiarLocal);
         normalize(Salience, Salience, 0, 255, CV_MINMAX, CV_32FC1);
-        
-        //imshow("SalienceNew", Salience);
         
         //=====================================Find & Move to Most Salient Target=========================================
         
@@ -322,13 +327,10 @@ int main(int argc, char *argv[])
 
 
         // Move left eye based on salience, but don't move the right eye
-        ServoRel(0,
-                 0,
-                 lxDifference * 1,
-                 lyDifference * 1,
-                 (Lx - LxC) / 100);
+        ServoRel(0, 0, lxDifference, lyDifference, (Lx - LxC) / 100);
 
-        waitKey(10);
+        //Wait to move before captureing another frame, otherwise we may get a blurred image
+        waitKey(20);
         //Capture a frame from the stream
         if (!cap.read(Frame)) {
             cout << "Could not open the input video: " << source << endl;
@@ -345,25 +347,10 @@ int main(int argc, char *argv[])
 
         //correlate the right image using the centre point of the left eye.
         OwlCorrel OWL = Owl_matchTemplate(Right, OWLtempl);
-  
-		//Now move the right eye.
-		TrackCorrelTarget(OWL);
 
+        //Now move the right eye.
+        TrackCorrelTarget(OWL);
 
-        //Draw rectangle on most salient area
-        rectangle(Left,
-                  target,
-                  Scalar::all(255),
-                  2, 8, 0);
-        //Draw a circle on the centres of the video windows
-        circle(Left, Point(IMAGE_WIDTH/2,IMAGE_HEIGHT/2), 5, Scalar(0,255,0), 1);
-        circle(Right, Point(IMAGE_WIDTH/2,IMAGE_HEIGHT/2), 5, Scalar(0,255,0), 1);
-      
-
-        //show the eyes
-        imshow("target", OWLtempl);
-        imshow("Right", Right);
-        imshow("Left", Left);
 
         // Update Familarity Map
         // Familiar map to inhibit salient targets once observed (this is a global map)
@@ -416,8 +403,27 @@ int main(int argc, char *argv[])
             resize(PanView, PanViewSmall, PanView.size() / 2);
             imshow("PanView", PanViewSmall);
         }
-        
+
+        //Draw rectangle on most salient area
+        rectangle(Left,
+                  target,
+                  Scalar::all(255),
+                  2, 8, 0);
+
         resize(Left, Left, Left.size() / 2);
+        resize(Right, Right, Right.size() / 2);
+
+        //Draw a circle on the centres of the video windows
+        circle(Left, Point(Left.size().width/2,Left.size().height/2), 5, Scalar(0,255,0), 1);
+        circle(Right, Point(Right.size().width/2,Right.size().height/2), 5, Scalar(0,255,0), 1);
+
+
+        //show the eyes and the target
+        imshow("Left", Left);
+        imshow("target", OWLtempl);
+        imshow("Right", Right);
+
+
 
         resize(SalienceHSV, SalienceHSV, SalienceHSV.size() / 2);
         imshow("SalienceHSV", SalienceHSV);
@@ -426,16 +432,26 @@ int main(int argc, char *argv[])
         //cout << "Control Window" << endl;
         namedWindow("Control", CV_WINDOW_AUTOSIZE);
         cvCreateTrackbar("DoG Weight", "Control", &DoGLowWeight, 100);
-        cvCreateTrackbar("Canny Weight", "Control", &CannyWeight, 100);
-        cvCreateTrackbar("Canny Strength", "Control", &CannyStrength, 100);
-        cvCreateTrackbar("Sobel Weight", "Control", &SobelWeight, 100);
-        cvCreateTrackbar("Colour Weight", "Control", &ColourWeight, 100);
-        cvCreateTrackbar("FamiliarW", "Control", &FamiliarWeight, 100);
-        cvCreateTrackbar("foveaW", "Control", &foveaWeight, 100);
+        cvCreateTrackbar("DoG High", "Control", &DoGHighWeight, 100);
+        cvCreateTrackbar("Canny W", "Control", &CannyWeight, 100);
+        cvCreateTrackbar("Canny Str", "Control", &CannyStrength, 100);
+        cvCreateTrackbar("Sobel W", "Control", &SobelWeight, 100);
+        cvCreateTrackbar("Colour", "Control", &ColourWeight, 100);
+        cvCreateTrackbar("Familiar", "Control", &FamiliarWeight, 100);
+        cvCreateTrackbar("fovea", "Control", &foveaWeight, 100);
 
 
-        
-        waitKey(10);
+        //At the end of every loop, add to the familiar map, effectively adding a slow decay to the owls "memory" of interest.
+        add(Scalar(1, 1, 1), familiar, familiar);
+
+        int key = waitKey(20);
+        switch (key)
+        {
+        case 'r':
+            familiar.setTo(double(255));
+            break;
+
+        }
     }
 }
 
@@ -444,15 +460,15 @@ int main(int argc, char *argv[])
 
 //Summary:
 //      The absolute values, in degrees, the servos should move to. Also does bound checking.
-string ServoAbs(double DEGRx, double DEGRy, double DEGLx, double DEGLy, double DEGNeck){
-    //int Rx, Ry, Lx, Ly, Neck;
-
+string ServoAbs(double DEGRx, double DEGRy, double DEGLx, double DEGLy, double DEGNeck){    
+    //Convert the params to PWM
     Rx = static_cast<int>(DEGRx * DEG2PWM);
     Ry = static_cast<int>(DEGRy * DEG2PWM);
     Lx = static_cast<int>(DEGLx * DEG2PWM);
     Ly = static_cast<int>(DEGLy * DEG2PWM);
     Neck = static_cast<int>(DEGNeck * DEG2PWM);
-    
+
+    //Do bound checking for eye and neck PWM values
     if(Rx > RxRm) {
         Rx = RxRm;
     } else if(Rx < RxLm) {
@@ -494,14 +510,15 @@ string ServoAbs(double DEGRx, double DEGRy, double DEGLx, double DEGLy, double D
 //Summary:
 //      The servos move by the difference, in degrees, passed in. Also does bound checking.
 //      i.e. If servo is at 5 degrees, and -3 is passed in, the result will be 2.
-string ServoRel(double DEGRx, double DEGRy, double DEGLx, double DEGLy, double DEGNeck){
-    //int Rx,Ry,Lx,Ly, Neck;
+string ServoRel(double DEGRx, double DEGRy, double DEGLx, double DEGLy, double DEGNeck){    
+    //Convert the params to PWM, and add the difference
     Rx = static_cast<int>(DEGRx * DEG2PWM) + Rx;
     Ry = static_cast<int>(-DEGRy * DEG2PWM) + Ry;
     Lx = static_cast<int>(DEGLx * DEG2PWM) + Lx;
     Ly = static_cast<int>(DEGLy * DEG2PWM) + Ly;
     Neck = static_cast<int>(-DEGNeck * DEG2PWM) + Neck;
     
+    //Do bound checking for eye and neck PWM values
     if(Rx > RxRm) {
         Rx = RxRm;
     } else if(Rx<RxLm) {
@@ -532,6 +549,7 @@ string ServoRel(double DEGRx, double DEGRy, double DEGLx, double DEGLy, double D
         Neck = NeckR;
     }
     
+    //Send the data
     CMDstream.str("");
     CMDstream.clear();
     CMDstream << Rx << " " << Ry << " " << Lx << " " << Ly << " " << Neck;
@@ -555,13 +573,6 @@ string TrackCorrelTarget (OwlCorrel OWL){
     double RyOff = ((OWL.Match.y - (IMAGE_HEIGHT / 2) + OWLtempl.rows / 2) / RyScaleV) * KPY ; // compare to centre of image
     double RyOld = Ry;
     Ry = static_cast<int>(RyOld - RyOff); // roughly 300 servo offset = 320 [pixel offset]
-
-    double LxCopy = Lx;
-    double LyCopy = Ly;
-    double RxCopy = Rx;
-    double RyCopy = Ry;
-    double NeckCopy = NeckC;
-
 
     string retSTR = "";
     const int MAX_CYCLES = 10;
@@ -597,7 +608,8 @@ string TrackCorrelTarget (OwlCorrel OWL){
     return (retSTR);
 }
 
-// Create DoG bandpass filter, with g being odd always and above 91 for low pass, and >9 for high pass
+// Create DoG bandpass filter, with g being odd always and
+// a lower numbers are a higher pass, and visa versa
 // k is normally 3 or 5
 Mat DoGFilter(Mat src, int k, int g){
     Mat srcC;
@@ -613,9 +625,9 @@ Mat SobelFilter(Mat greySrc, int scale, int delta)
 {
     //http://docs.opencv.org/3.4.3/d2/d2c/tutorial_sobel_derivatives.html
     Mat result;
-    int ddepth = CV_16S;    
+    int ddepth = CV_16S;
     Mat grad_x, grad_y;
-    Mat abs_grad_x, abs_grad_y;    
+    Mat abs_grad_x, abs_grad_y;
 
     //Next calculate derivatives, in x and y direction.
     Sobel(greySrc, grad_x, ddepth, 1, 0, 3, scale, delta, BORDER_DEFAULT);
@@ -677,7 +689,7 @@ Mat ColourFilter(Mat colourSrc) {
         //Then the x pixels, so we have a pixel at y,x
         for( int x = 0; x < result.cols; x++ ) {
             //Then if the luminocity is blow threshold, just set the pixel to 0
-                //Essentially ignoring it.
+            //Essentially ignoring it.
             if (result.at<uchar>(y, x) <= threshold) {
                 result.at<uchar>(y, x) = 0;
             }
