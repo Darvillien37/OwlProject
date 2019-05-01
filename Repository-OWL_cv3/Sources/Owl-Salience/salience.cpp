@@ -50,6 +50,9 @@
 
 #define IMAGE_WIDTH 640
 #define IMAGE_HEIGHT 480
+#define KPX 0.13 // track rate X
+#define KPY 0.13 // track rate Y
+
 
 #define xOffset  -0.3815
 #define yOffset -54.6682
@@ -90,6 +93,10 @@ static int CannyStrength = 20; //Strength of canny detection, defaults to 20.
 static int FamiliarWeight = 5; //Familiarity of the target, how much has the owl focused on this before
 static int foveaWeight = 50; //Distance from fovea (center)
 
+double lxDifference = 0;
+double lyDifference = 0;
+
+int loopCounter = 0;
 
 int main(int argc, char *argv[])
 {
@@ -238,6 +245,25 @@ int main(int argc, char *argv[])
         GlobalPos.x = static_cast<int>(900 + ((-(Neck - NeckC) + (Lx - LxC)) / DEG2PWM) / PX2DEG);
         GlobalPos.y = static_cast<int>(500 + ((Ly - LyC) / DEG2PWM) / PX2DEG);
 
+        if(GlobalPos.x < 0)
+        {
+            GlobalPos .x = 0;
+        }
+        if(GlobalPos.y < 0)
+        {
+            GlobalPos.y = 0;
+        }
+
+        if (GlobalPos.x > familiar.size().width - Left.size().width - 1)
+        {
+            GlobalPos.x = familiar.size().width - Left.size().width - 1;
+        }
+
+        if (GlobalPos.y > familiar.size().height - Left.size().height - 1)
+        {
+            GlobalPos.y = familiar.size().height - Left.size().height - 1;
+        }
+
         Mat familiarLocal = familiar(Rect(GlobalPos.x, GlobalPos.y, Left.cols, Left.rows));
 
         cout << "X: "<< GlobalPos.x << "\tY: " << GlobalPos.y << endl;
@@ -268,7 +294,7 @@ int main(int argc, char *argv[])
         familiarLocal.convertTo(familiarLocal, CV_32FC1);
         
         // Linear combination of feature maps to create a salience map
-        Mat Salience = cv::Mat(Left.size(), CV_32FC1,0.0); // init map
+        Mat Salience = cv::Mat(Left.size(), CV_32FC1, 0.0); // init map
 
         add(Salience, DoGLow, Salience);
         add(Salience, fovea, Salience);
@@ -281,24 +307,63 @@ int main(int argc, char *argv[])
         
         //imshow("SalienceNew", Salience);
         
-        //=====================================Find & Move to Most Salient Target=========================================        
-        minMaxLoc(Salience, &minVal, &maxVal, &minLoc, &maxLoc, Mat());
-        // Calculate relative servo correction and magnitude of correction
-        double xDifference = static_cast<double>((maxLoc.x - 320) * PX2DEG);
-        double yDifference = static_cast<double>((maxLoc.y - 240) * PX2DEG);
+        //=====================================Find & Move to Most Salient Target=========================================
         
-        rectangle(Left,
-                  Point(maxLoc.x - 32, maxLoc.y - 32),
-                  Point(maxLoc.x + 32, maxLoc.y + 32),
-                  Scalar::all(255),
-                  2, 8, 0); //draw rectangle on most salient area
+        //Find the maximum salience value in the Salience array.
+        minMaxLoc(Salience, &minVal, &maxVal, &minLoc, &maxLoc, Mat());
 
-        // Move left eye based on salience, move right eye to be parallel with left eye
-        ServoRel(((Lx - LxC + RxC - Rx) / DEG2PWM) + xDifference * 1,
-                 -((LyC - Ly + RyC - Ry) / DEG2PWM) + yDifference * 1,
-                 xDifference * 1,
-                 yDifference * 1,
+        // Calculate relative servo correction and magnitude of correction
+        lxDifference = static_cast<double>((maxLoc.x - (IMAGE_WIDTH / 2)) * PX2DEG);
+        lyDifference = static_cast<double>((maxLoc.y - (IMAGE_HEIGHT / 2)) * PX2DEG);
+        
+        //Set the target round the most salient area
+        target = Rect( Point(maxLoc.x - 32, maxLoc.y - 32),
+                       Point(maxLoc.x + 32, maxLoc.y + 32));
+
+
+        // Move left eye based on salience, but don't move the right eye
+        ServoRel(0,
+                 0,
+                 lxDifference * 1,
+                 lyDifference * 1,
                  (Lx - LxC) / 100);
+
+        waitKey(100);
+        //Capture a frame from the stream
+        if (!cap.read(Frame)) {
+            cout << "Could not open the input video: " << source << endl;
+        }
+        cv::flip(Frame, FrameFlpd, 1);     // Note that Left/Right are reversed now
+        // Split into LEFT and RIGHT images from the stereo pair sent as one MJPEG iamge
+        Left = FrameFlpd(Rect(0, 0, 640, 480));         // Using a rectangle
+        remap(Left, Left, map1L, map2L, INTER_LINEAR);  // Apply camera calibration
+        Right = FrameFlpd(Rect(640, 0, 640, 480));      // Using a rectangle
+        remap(Right, Right, map1R, map2R, INTER_LINEAR);// Apply camera calibration
+
+        //set the template as the centre point of the left eye.
+        OWLtempl = Left(CENTRE_TARGET);
+
+        //correlate the right image using the centre point of the left eye.
+        OwlCorrel OWL = Owl_matchTemplate(Right, OWLtempl);
+  
+		//Now move the right eye.
+		TrackCorrelTarget(OWL);
+
+
+        //Draw rectangle on most salient area
+        rectangle(Left,
+                  target,
+                  Scalar::all(255),
+                  2, 8, 0);
+        //Draw a circle on the centres of the video windows
+        circle(Left, Point(IMAGE_WIDTH/2,IMAGE_HEIGHT/2), 5, Scalar(0,255,0), 1);
+        circle(Right, Point(IMAGE_WIDTH/2,IMAGE_HEIGHT/2), 5, Scalar(0,255,0), 1);
+      
+
+        //show the eyes
+        imshow("target", OWLtempl);
+        imshow("Right", Right);
+        imshow("Left", Left);
 
         // Update Familarity Map
         // Familiar map to inhibit salient targets once observed (this is a global map)
@@ -322,7 +387,7 @@ int main(int argc, char *argv[])
         Mat familiarSmall;
         resize(familiar, familiarSmall, familiar.size() / 4);
         imshow("Familiar", familiarSmall);
-        //imshow("Right", Right);
+
         
         //=================================Convert Saliency into Heat Map=====================================
         
@@ -342,27 +407,9 @@ int main(int argc, char *argv[])
         
         
         //=======================================Update Global View===========================================
-        //cout << "Global View" << endl;
         if(GlobalPos != Point(0, 0)){
 
-//            if(GlobalPos.x < 0){
-//               GlobalPos.x = 0;
-//            }
-
-//            if (GlobalPos.y < 0){
-//                GlobalPos.y = 0;
-//            }
-
-//            if(GlobalPos.x > (PanView.rows - 1)) {
-//                GlobalPos.x = PanView.rows - 1;
-//            }
-
-//            if(GlobalPos.y > PanView.cols  - 1) {
-//                GlobalPos.y = PanView.cols  - 1;
-//            }
-
             Mat LeftCrop = Left(Rect(220, 140, 200, 200));//image cropped to minimize image stitching artifacts
-            //OWLtempl = Left(LeftCrop);
 
             LeftCrop.copyTo(PanView(Rect(GlobalPos.x, GlobalPos.y, LeftCrop.cols, LeftCrop.rows)));
             Mat PanViewSmall;
@@ -371,7 +418,7 @@ int main(int argc, char *argv[])
         }
         
         resize(Left, Left, Left.size() / 2);
-        imshow("Left", Left);
+
         resize(SalienceHSV, SalienceHSV, SalienceHSV.size() / 2);
         imshow("SalienceHSV", SalienceHSV);
         
@@ -387,7 +434,6 @@ int main(int argc, char *argv[])
         cvCreateTrackbar("foveaW", "Control", &foveaWeight, 100);
 
 
-        //OwlCorrel OWL = Owl_matchTemplate(Right, OWLtempl);
         
         waitKey(10);
     }
@@ -399,10 +445,10 @@ int main(int argc, char *argv[])
 //Summary:
 //      The absolute values, in degrees, the servos should move to. Also does bound checking.
 string ServoAbs(double DEGRx, double DEGRy, double DEGLx, double DEGLy, double DEGNeck){
-    int Rx, Ry, Lx, Ly, Neck;
+    //int Rx, Ry, Lx, Ly, Neck;
 
-    //Rx = static_cast<int>(DEGRx * DEG2PWM);
-    //Ry = static_cast<int>(DEGRy * DEG2PWM);
+    Rx = static_cast<int>(DEGRx * DEG2PWM);
+    Ry = static_cast<int>(DEGRy * DEG2PWM);
     Lx = static_cast<int>(DEGLx * DEG2PWM);
     Ly = static_cast<int>(DEGLy * DEG2PWM);
     Neck = static_cast<int>(DEGNeck * DEG2PWM);
@@ -450,8 +496,8 @@ string ServoAbs(double DEGRx, double DEGRy, double DEGLx, double DEGLy, double D
 //      i.e. If servo is at 5 degrees, and -3 is passed in, the result will be 2.
 string ServoRel(double DEGRx, double DEGRy, double DEGLx, double DEGLy, double DEGNeck){
     //int Rx,Ry,Lx,Ly, Neck;
-//    Rx = static_cast<int>(DEGRx * DEG2PWM) + Rx;
-//    Ry = static_cast<int>(-DEGRy * DEG2PWM) + Ry;
+    Rx = static_cast<int>(DEGRx * DEG2PWM) + Rx;
+    Ry = static_cast<int>(-DEGRy * DEG2PWM) + Ry;
     Lx = static_cast<int>(DEGLx * DEG2PWM) + Lx;
     Ly = static_cast<int>(DEGLy * DEG2PWM) + Ly;
     Neck = static_cast<int>(-DEGNeck * DEG2PWM) + Neck;
@@ -494,35 +540,60 @@ string ServoRel(double DEGRx, double DEGRy, double DEGLx, double DEGLy, double D
     return (retSTR);
 }
 
+//Calculates PWM position of right eye, based off OwlCorrel.
 string TrackCorrelTarget (OwlCorrel OWL){
     ostringstream CMDstream;
     string CMD, RxPacket;
-    
-    // Only for left eye at the moment
-    //** P control set track rate to 10% of destination PWMs to avoid ringing in eye servo
-    double KPx = 0.1; // track rate X
-    double KPy = 0.1; // track rate Y
-    double LxScaleV = LxRangeV / static_cast<double>(640); //PWM range /pixel range
-    double Xoff = 320 - (OWL.Match.x + OWLtempl.cols / 2) / LxScaleV; // compare to centre of image
-    double LxOld = Lx;
-    Lx = static_cast<int>(LxOld - Xoff * KPx); // roughly 300 servo offset = 320 [pixel offset]
-    
-    double LyScaleV = LyRangeV / static_cast<double>(480); //PWM range /pixel range
-    double Yoff = (240 + (OWL.Match.y + OWLtempl.rows / 2) / LyScaleV) * KPy; // compare to centre of image
-    double LyOld = Ly;
-    Ly = static_cast<int>(Yoff - LyOld); // roughly 300 servo offset = 320 [pixel offset]
-    
-    //cout << owl::Lx << " " << Xoff << " " << LxOld << endl; // DEBUG PFC
-    //cout << owl::Ly << " " << Yoff << " " << LyOld << endl;
-    
-    //** ACTION
-    // move to get minimise distance from centre of both images, ie verge in to target
-    // move servos to position
-    string retSTR = ServoAbs(((RxC - Rx) / DEG2PWM), //Rx
-                            ((RyC - Ry) / DEG2PWM), // Ry -- the right eye Y servo has inverted direction compared to left.
-                            ((LxC - Lx) / DEG2PWM),// Lx
-                            ((LyC - Ly) / DEG2PWM), // Ly
-                            NeckC / DEG2PWM); // NECK .. no neck motion as yet
+
+    //================= calculate PWM position of right eye =================
+    double RxScaleV = RxRangeV / static_cast<double>(IMAGE_WIDTH); //PWM range /pixel range
+    double RxOff = (OWL.Match.x - (IMAGE_WIDTH / 2)  + OWLtempl.cols / 2) / RxScaleV ; // compare to centre of image
+    double RxOld = Rx;
+    Rx = static_cast<int>(RxOld + RxOff * KPX); // roughly 300 servo offset = 320 [pixel offset]
+
+    double RyScaleV = RyRangeV / static_cast<double>(IMAGE_HEIGHT); //PWM range /pixel range
+    double RyOff = ((OWL.Match.y - (IMAGE_HEIGHT / 2) + OWLtempl.rows / 2) / RyScaleV) * KPY ; // compare to centre of image
+    double RyOld = Ry;
+    Ry = static_cast<int>(RyOld - RyOff); // roughly 300 servo offset = 320 [pixel offset]
+
+    double LxCopy = Lx;
+    double LyCopy = Ly;
+    double RxCopy = Rx;
+    double RyCopy = Ry;
+    double NeckCopy = NeckC;
+
+
+    string retSTR = "";
+    const int MAX_CYCLES = 10;
+    //Every x amount of cycles round, we reset the right eye to be parelel.
+    if(loopCounter >= MAX_CYCLES)
+    {
+        loopCounter = 0;
+        cout << "Resetting right eye parelel." << endl;
+        //move right eye to be parallel with left eye
+        retSTR = ServoRel(
+                    ((Lx - LxC + RxC - Rx) / DEG2PWM) + lxDifference * 1,
+                    -((LyC - Ly + RyC - Ry) / DEG2PWM) + lyDifference * 1,
+                    0,
+                    0,
+                    0);
+
+
+    }
+    else
+    {
+        //** ACTION
+        // move to get minimise distance from centre of both images, ie verge in to target
+        // move servos to position
+        retSTR = ServoAbs(
+                    (Rx / DEG2PWM), //Rx
+                    (Ry / DEG2PWM), // Ry -- the right eye Y servo has inverted direction compared to left.
+                    (Lx / DEG2PWM),// Lx
+                    (Ly / DEG2PWM), // Ly
+                    Neck / DEG2PWM
+                    );
+    }
+    loopCounter ++;
     return (retSTR);
 }
 
