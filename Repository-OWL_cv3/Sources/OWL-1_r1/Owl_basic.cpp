@@ -99,11 +99,11 @@ void SendData(){//Send the PWM servo data to the OWL
 void CalculateDistance() {    
     //Note: Right eye servo is flipped
     //Get the radian angle of the eyes,
-    // from the current location to the center of the eyes.
+    // from the current location to the centre of the eyes.
     rightRads = (float(RxC - Rx) * M_PI) / (Deg2Pwm * 180);
     leftRads = (float(Lx - LxC) * M_PI) / (Deg2Pwm * 180);
 
-    //Calculations based on lecture notes
+    //Calculation equation based on lecture notes
 
     //dL = distanceLeft, p1, p2, p3 = part1, part2 and part3 respectively of distance formula.
     //distance left = (IPD COS(angle right)) / (SIN(angle left + angle right)
@@ -116,7 +116,7 @@ void CalculateDistance() {
     //distance estimate = square root((distance left^2) + (IPD^2/4) - (distance left * IPD * SIN(angle left))
     float estimatedDistance = (sqrt((p1 + p2) - p3));
 
-    //Now correct the estemated distance based off of scatter graph data.
+    //Now correct the estimated distance based off of scatter graph data.
     //y = 0.9926x - 13.624
     calcDistance = (0.9926f * estimatedDistance) - 13.624f;
 }
@@ -308,8 +308,7 @@ int main(int argc, char *argv[])
             double RyOld=Ry;
             Ry=static_cast<int>(RyOld - RyOff); // roughly 300 servo offset = 320 [pixel offset]
 
-
-            //Then calculate the distance for the next loop.
+            //Then calculate the distance of the target.
             CalculateDistance();
             // Create the string, for the distance value, calls calcDistance()
             string distanceString = "Distance: " + to_string((int)calcDistance) + "mm";
@@ -317,7 +316,7 @@ int main(int argc, char *argv[])
             // Check to see if eyes are diverging on a target.
             // If not, move the neck towards the direction the eyes
             // are looking in.
-            if (Lx < LxC && Rx > RxC) { // If eyes diverge
+            if (Lx < LxC && Rx > RxC) { // If eyes diverge then the target is lost
                 distanceString = "Divergent Target lost!";
             }
             else if(Rx > RxC)// Looking to the right
@@ -327,7 +326,7 @@ int main(int argc, char *argv[])
             }
             else if (Lx < LxC) // Looking to the left
             {
-                // Move the neck to theleft.
+                // Move the neck to the left.
                 Neck = Neck + 5;
             }
 
@@ -336,16 +335,15 @@ int main(int argc, char *argv[])
             // Draw rectangle for resample state text.
             rectangle( RightCopy, resampleBox, Scalar::all(0), -1, 8, 0);
 
-            //Then we write the distance string on to the screen.
+            //Then write the distance string on to the screen, and if we are resampling the template
             putText(RightCopy, distanceString, cvPoint(165, 465), FONT_HERSHEY_DUPLEX, 1, Scalar::all(255), 0, 0, false);
-            // coords 520, 33
             putText(RightCopy, "Resampling: ", cvPoint(70, 45), FONT_HERSHEY_DUPLEX, 0.8, Scalar::all(255), 0, 0, false);
             putText(RightCopy, resample ? "True" : "False", cvPoint(230, 45), FONT_HERSHEY_DUPLEX, 0.8, Scalar::all(255), 0, 0, false);
             putText(RightCopy, "| Press 'r' to toggle.", cvPoint(320, 45), FONT_HERSHEY_DUPLEX, 0.8, Scalar::all(255), 0, 0, false);
             //Output all of the variables to console (For debugging and monitoring)
             cout << "Rx: " << Rx << "   Lx: " << Lx << "   Deg2Pwm: " << Deg2Pwm << "   Distance: " << calcDistance << "mm" << endl;
 
-            //Display all of the important windows,
+            //Display all of the important windows
             imshow("Owl-L", Left);
             imshow("CorrelL", OWL.ResultL);
             imshow("CorrelR", OWL.ResultR);
