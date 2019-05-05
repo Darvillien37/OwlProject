@@ -76,38 +76,43 @@ struct OwlCorrel Owl_matchTemplate(Mat Right, Mat Left, Mat templ)
     return (OWL);
 }
 
+//Capture images from the video source, and save them into a folder location
 int OwlCalCapture(cv::VideoCapture &cap, string Folder){
-    int const MAX_IMAGES = 20;
-    int imageCount = 0;
-    cv::Mat Frame;
-    cout << "Please press {spacebar} to capture an image... " << endl;
-    int key = 0;
-    while(imageCount < MAX_IMAGES)
+    int const MAX_IMAGES = 20;//Maximum images to capture
+    int imageCount = 0;//the current
+    cv::Mat Frame; //the frame from the video source
+	//Signal to the user to what key to press to capture images.
+    cout << "Please press {spacebar} to capture an image... " << endl; 	
+    int key = 0;//key which user has pressed.
+    while(imageCount < MAX_IMAGES)//while we haven't captured the maximum amount of images.....
     {
-        if (!cap.read(Frame))
-        {
+        if (!cap.read(Frame))//Read a frame from the video source
+        {//If the frame was not read, return out of this function.
             return(-1);
         }
-        // Split into LEFT and RIGHT images from the stereo pair sent as one MJPEG iamge
+        // Split into LEFT and RIGHT images from the stereo pair sent as one MJPEG image...
         cv::Mat Right = Frame( Rect(0, 0, 640, 480)); // using a rectangle
-        cv::Mat Left = Frame( Rect(640, 0, 640, 480)); // using a rectanglecv::imwrite(Folder + "left" + count + "jpg", Left);
-        imshow("Left",Left);
-        imshow("Right",Right);
+        cv::Mat Left = Frame( Rect(640, 0, 640, 480)); // using a rectangle
+        imshow("Left",Left);//Show the left image
+        imshow("Right",Right);//Show the right image
+
+		//Wait 10ms for a user input, also a long enough wait to capture a stable image.
         key = waitKey(10);
-        if(key == 32)
-        {
-            string fnameR(Folder + "right" + to_string(imageCount) + ".jpg");
+        if(key == 32)//32 = {spacebar} key code
+        {//If the user pressed the spacebar, then save the images.
+            string fnameR=(Folder + "right" + to_string(imageCount) + ".jpg");//create the file path
             string fnameL=(Folder + "left" +  to_string(imageCount) + ".jpg");
-            cv::imwrite(fnameL, Left);
+            cv::imwrite(fnameL, Left);//save the images
             cv::imwrite(fnameR, Right);
+			//Signal to the user which pair of images has been saved
             cout << "Saved " << imageCount << " stereo pair" << Folder <<endl;
+			//increase the image count, also so the names of the next images are different.
             imageCount++;
         }
-
-
     }
 
     destroyAllWindows();
-    cout << "Just saved 10 stereo pairs" << Folder <<endl;
+	//Signal to the user how many pairs of images where saved
+    cout << "Just saved "<< to_string(imageCount) << " stereo pairs to: " << Folder <<endl;
     return(0);
 }
