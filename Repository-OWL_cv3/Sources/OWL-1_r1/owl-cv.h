@@ -19,24 +19,22 @@
 using namespace std;
 using namespace cv;
 
-struct OwlCorrel {
-    Point MatchL;
-    Point MatchR;
-    Mat ResultL;
-    Mat ResultR;
+struct OwlCorrel {//Results of correlating  images 
+    Point MatchL; //The best match location for the left image
+    Point MatchR; //The best match location for the right image
+    Mat ResultL; //correlation result matrix for the left image
+    Mat ResultR; //correlation result matrix for the right image
 };
 
 Mat OWLtempl; // used in correlation
-Rect target = Rect(320-32, 240-32, 64, 64); // target is at the centre of the camera FOV
-Rect textBox = Rect(320-155, 433, 310, 40); // target is at the centre of the camera FOV
-Rect resampleBox = Rect(65, 20, 520, 33); // target is at the centre of the camera FOV
-// drawn over whatever is in the centre of the FOV, to act as a template
+Rect target = Rect(320-32, 240-32, 64, 64); // initialise the target is at the centre of the camera FOV
+Rect textBox = Rect(320-155, 433, 310, 40); // The distance text box 
+Rect resampleBox = Rect(65, 20, 520, 33); // The re-sampling text box
 
-// Overlays a template over 2 images and finds the best match for the template to be.
+// Overlays a template over 2 images and finds the best match within the images.
 struct OwlCorrel Owl_matchTemplate(Mat Right, Mat Left, Mat templ)
 {
     static OwlCorrel OWL;
-
     // Initialise the result matrix for left eye
     int result_cols =  Left.cols - templ.cols + 1;
     int result_rows = Left.rows - templ.rows + 1;    
@@ -47,44 +45,34 @@ struct OwlCorrel Owl_matchTemplate(Mat Right, Mat Left, Mat templ)
     result_rows = Right.rows - templ.rows + 1;
     OWL.ResultR.create(result_rows, result_cols, CV_32FC1);
 
-    // Do the Matching and Normalize
+    // Do the Matching and Normalize process
+	// Produces a matrix of values based on match accuracy
     int match_method = 5; // CV_TM_CCOEFF_NORMED;
+	//Output the results of the correlation to OWL.ResultL and ResultR
     matchTemplate(Left, templ, OWL.ResultL, match_method);
     matchTemplate(Right, templ, OWL.ResultR, match_method);
 
     // Localizing the best match with minMaxLoc
-    double minVal;
-    double maxVal;
-    Point minLoc;
-    Point maxLoc;
-    Point matchLoc;
+    double minVal, maxVal;
+	Point minLoc, maxLoc;
 
-    //Find the location of the best match.
-    // Left Eye:
+    //Find the location of the best match for the Left eye,
+	// by finding the min and max values of the result Matrix.
     minMaxLoc(OWL.ResultL, &minVal, &maxVal, &minLoc, &maxLoc, Mat());
-    // For SQDIFF and SQDIFF_NORMED, the best matches are lower values. For all the other methods, the higher the better
-    if( match_method  == cv::TM_SQDIFF || match_method == cv::TM_SQDIFF_NORMED ) //CV4
-    {
-        OWL.MatchL = minLoc;
-    }
+    //For SQDIFF and SQDIFF_NORMED, the best matches are lower values. 
+	// For all the other methods, the higher the better
+    if( match_method  == cv::TM_SQDIFF || match_method == cv::TM_SQDIFF_NORMED )
+    { OWL.MatchL = minLoc; }
     else
-    {
-        OWL.MatchL = maxLoc;
-    }
-
-    //Find the location of the best match.
-    // Right Eye:
+    { OWL.MatchL = maxLoc; }
+	
+	//Find the location of the best match for the Right eye:
     minMaxLoc(OWL.ResultR, &minVal, &maxVal, &minLoc, &maxLoc, Mat());
-    // For SQDIFF and SQDIFF_NORMED, the best matches are lower values. For all the other methods, the higher the better
-    if( match_method  == cv::TM_SQDIFF || match_method == cv::TM_SQDIFF_NORMED ) //CV4
-    {
-        OWL.MatchR = minLoc;
-    }
+    if( match_method  == cv::TM_SQDIFF || match_method == cv::TM_SQDIFF_NORMED )
+    { OWL.MatchR = minLoc; }
     else
-    {
-        OWL.MatchR = maxLoc;
-    }
-
+    { OWL.MatchR = maxLoc; }
+	//return the created OwlCorrel object.
     return (OWL);
 }
 
