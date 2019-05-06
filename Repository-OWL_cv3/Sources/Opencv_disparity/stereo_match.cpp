@@ -167,7 +167,7 @@ double DistanceEquation(int brightness) {
     // estimate = 324314 * brightness^-0.918
     double estimate = 324314 * pow(brightness, -0.918);
     //Apply the correction, gathered from measuring inaccuracies
-    // estimate = 1.0911 - 13.955
+    // estimate = 1.0911x - 13.955
     estimate = (1.0911 * estimate) - 13.955;
     return estimate;
 }
@@ -364,15 +364,15 @@ int main(int argc, char** argv)
             //Check for mouse clicks on disparity window before any calculations.
             setMouseCallback("disparity", CallBackFunc, NULL);
 
-            //Calculations for distance begin here.
-            //Grab target here.
-            disp(target).copyTo(targetArray);
-
+            //Calculations for distance begin here.          
             //Reset colour sum before use.
             colourSum = 0;
 
             //Reset wrongCount before use.
             wrongCount = 0;
+			
+			//Grab target.
+            disp(target).copyTo(targetArray);
 
             //Loop through every pixel on target.
             for (int i = 0; i < targetSize; i++) {
@@ -390,11 +390,14 @@ int main(int argc, char** argv)
                 }
             }
 
-            //If not all pixels are ignored divide by count of unignored pixels.
+            //If not all pixels are ignored divide by count of non-ignored pixels.
             if (wrongCount != pow(targetSize, 2)) {
                 colourSum = colourSum / (pow(targetSize, 2) - wrongCount);
             } else {
-                // Otherwise, ignore wrongCount
+                //Otherwise, if all pixels were ignored
+				// then ignore wrongCount.
+				//This will result in a decide by 0 error, 
+				// setting colour sum to maximum integer.
                 colourSum = colourSum / pow(targetSize, 2);
             }
 
@@ -440,10 +443,10 @@ int main(int argc, char** argv)
                 cyclicBufferSum = 0;
                 cyclicBuffer2Sum = 0;
 
-                //If averaging, put the value into cyclicBuffer2Average
+                //If averaging, put the averaged value into colourValue
                 colourValue = cyclicBuffer2Average;
             } else {
-                //Else, put live value into colourSum
+                //Else, put live value into colourValue
                 colourValue = colourSum;
             }
 
@@ -518,7 +521,11 @@ int main(int argc, char** argv)
                 cyclicBuffer2Index = 0;
 
                 cout << "Flushed buffers!" << endl;
-            }
+			}
+			else if (key == 'q') // quit the loop and exit application
+			{
+				inLOOP = false;
+			}
         } // end video loop
     } // end got intrinsics IF
 #ifdef _WIN32
