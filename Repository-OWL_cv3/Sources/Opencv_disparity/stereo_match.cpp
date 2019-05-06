@@ -167,9 +167,9 @@ double DistanceEquation(int brightness) {
     // estimate = 324314 * brightness^-0.918
     double estimate = 324314 * pow(brightness, -0.918);
     //Apply the correction, gathered from measuring inaccuracies
-    // estimate = 1.0911x - 13.955
-    estimate = (1.0911 * estimate) - 13.955;
-    return estimate;
+    // correctedEstimate = 1.0911x - 13.955
+	double correctedEstimate = (1.0911 * estimate) - 13.955;
+    return correctedEstimate;
 }
 
 int main(int argc, char** argv)
