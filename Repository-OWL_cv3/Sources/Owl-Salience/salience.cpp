@@ -98,6 +98,9 @@ double lyDifference = 0;
 
 int loopCounter = 0;
 
+//Running the main loop of the application.
+bool inLoop = true;
+
 int main(int argc, char *argv[])
 {
     //==========================================Initialize Variables=================================
@@ -189,9 +192,8 @@ int main(int argc, char *argv[])
         return -1;
     }
     
-    while(1)
-    {//Main processing loop
-        //cout << "Capture Frame" << endl;
+    while(inLoop)
+    {//Main processing loop        
         //==========================================Capture Frame============================================
         if (!cap.read(Frame)) {
             cout << "Could not open the input video: " << source << endl;
@@ -210,42 +212,42 @@ int main(int argc, char *argv[])
         
         
         // ======================================CALCULATE FEATURE MAPS ====================================
-        //============================================DoG low bandpass Map============================================
-        Mat DoGLow = DoGFilter(LeftGrey, 3, 71);
+        // ===============================DoG low bandpass Map===============================
+        //Run the DoG filter against the left greyscaled, and put it in 'DoGLow'
+		Mat DoGLow = DoGFilter(LeftGrey, 3, 71); //71 = low pass
         Mat DoGLow8;
+		//Normalise values between 0 and 255, and convert to an 8bit channel map
         normalize(DoGLow, DoGLow8, 0, 255, CV_MINMAX, CV_8U);
+		//Show the filter
         imshow("DoG Low", DoGLow8);
+		//Similar functionality for each filter....
 
-        //============================================DoG high bandpass Map============================================
-        Mat DoGHigh = DoGFilter(LeftGrey, 3, 21);
+        // ===============================DoG high bandpass Map===============================
+        Mat DoGHigh = DoGFilter(LeftGrey, 3, 21);//21 = high pass
         Mat DoGHigh8;
         normalize(DoGHigh, DoGHigh8, 0, 255, CV_MINMAX, CV_8U);
         imshow("DoG High", DoGHigh8);
-
-        // ======================================CALCULATE FEATURE MAPS ====================================
-        //============================================Sobel Map============================================
+        
+        // ===============================Sobel Map===============================
         Mat SobelMap = SobelFilter(LeftGrey, 1, 0);
         Mat SobelMap8;
         normalize(SobelMap, SobelMap8, 0, 255, CV_MINMAX, CV_8U);
         imshow("SobelMap8", SobelMap8);
-
-        // ======================================CALCULATE FEATURE MAPS ====================================
-        //============================================Canny Map============================================
+        
+        // ===============================Canny Map===============================
         Mat CannyMap = CannyFilter(LeftGrey);
         Mat CannyMap8;
         normalize(CannyMap, CannyMap8, 0, 255, CV_MINMAX, CV_8U);
         imshow("CannyMap8", CannyMap8);
-
-        // ======================================CALCULATE FEATURE MAPS ====================================
-        //============================================Colour Map============================================]]
-
-        Mat ColourMap = ColourFilter(Left);
+        
+        // ===============================Colour Map===============================
+        // Run the colour filter against the left coloured
+		Mat ColourMap = ColourFilter(Left);
         Mat ColourMap8;
         normalize(ColourMap, ColourMap8, 0, 255, CV_MINMAX, CV_8U);
         imshow("ColourMap", ColourMap8);
         
-        //=====================================Initialise Global Position====================================
-        //cout << "Globe Pos" << endl;
+        //=====================================Initialise Global Position====================================        
         Point GlobalPos;    // Position of camera view within the range of movement of the OWL
         GlobalPos.x = static_cast<int>(900 + ((-(Neck - NeckC) + (Lx - LxC)) / DEG2PWM) / PX2DEG);
         GlobalPos.y = static_cast<int>(500 + ((Ly - LyC) / DEG2PWM) / PX2DEG);
@@ -302,6 +304,7 @@ int main(int argc, char *argv[])
         // Linear combination of feature maps to create a salience map
         Mat Salience = cv::Mat(Left.size(), CV_32FC1, 0.0); // init map
 
+		//Add the maps to the saliency map
         add(Salience, DoGLow, Salience);
         add(Salience, DoGHigh, Salience);
         add(Salience, fovea, Salience);
@@ -309,34 +312,58 @@ int main(int argc, char *argv[])
         add(Salience, CannyMap, Salience);
         add(Salience, ColourMap, Salience);
 
+		//Multiply by the familiarity, making unexplored areas more prominent.
+		//Stored as black and white image, where the darker the spot, 
+		// the more familiar that location is to the owl,
+		//A white value is 255, black is 0, therefore if an area is completely explored,
+		// (i.e. black) then the resultant saliency for that location will be 0, 
+		// (i.e. not interesting)
         Salience = Salience.mul(familiarLocal);
-        normalize(Salience, Salience, 0, 255, CV_MINMAX, CV_32FC1);
+		//Normalize values between 0 and 255
+        normalize(Salience, Salience, 0, 255, CV_MINMAX, CV_32FC1); 
         
-        //=====================================Find & Move to Most Salient Target=========================================
-        
+        //=====================================Find & Move to Most Salient Target=========================================        
         //Find the maximum salience value in the Salience array.
         minMaxLoc(Salience, &minVal, &maxVal, &minLoc, &maxLoc, Mat());
 
         // Calculate relative servo correction and magnitude of correction
         lxDifference = static_cast<double>((maxLoc.x - (IMAGE_WIDTH / 2)) * PX2DEG);
         lyDifference = static_cast<double>((maxLoc.y - (IMAGE_HEIGHT / 2)) * PX2DEG);
-        
-        //Set the target round the most salient area
+  
+		//Set the target round the most salient area
         target = Rect( Point(maxLoc.x - 32, maxLoc.y - 32),
                        Point(maxLoc.x + 32, maxLoc.y + 32));
 
+#pragma region Possible solution to inefficient eye movement
+		// Unable to test as ran out of time, and already recorded video,
+		// however added as commented code.
+
+		// set the template as the Most salient area
+		//OWLtempl = Left(target);
+		// correlate the right image using the most salient area on the left eye.
+		//OwlCorrel OWL = Owl_matchTemplate(Right, OWLtempl);
+
+		// Calculate relative servo correction and magnitude of correction
+		//rxDifference = static_cast<double>((OWL.Match.x - (IMAGE_WIDTH / 2)) * PX2DEG);
+		//ryDifference = static_cast<double>((OWL.Match.y - (IMAGE_HEIGHT / 2)) * PX2DEG);
+
+		// Move left eye based on salience, but don't move the right eye
+		//ServoRel(rxDifference, ryDifference, lxDifference, lyDifference, (Lx - LxC) / 100);	
+
+		//With this, no need to read a second frame in the loop.
+#pragma endregion
 
         // Move left eye based on salience, but don't move the right eye
         ServoRel(0, 0, lxDifference, lyDifference, (Lx - LxC) / 100);
 
-        //Wait to move before captureing another frame, otherwise we may get a blurred image
+        //Wait to move before capturing another frame, otherwise we may get a blurred image
         waitKey(20);
         //Capture a frame from the stream
         if (!cap.read(Frame)) {
             cout << "Could not open the input video: " << source << endl;
         }
         cv::flip(Frame, FrameFlpd, 1);     // Note that Left/Right are reversed now
-        // Split into LEFT and RIGHT images from the stereo pair sent as one MJPEG iamge
+        // Split into LEFT and RIGHT images from the stereo pair sent as one MJPEG image
         Left = FrameFlpd(Rect(0, 0, 640, 480));         // Using a rectangle
         remap(Left, Left, map1L, map2L, INTER_LINEAR);  // Apply camera calibration
         Right = FrameFlpd(Rect(640, 0, 640, 480));      // Using a rectangle
@@ -351,8 +378,7 @@ int main(int argc, char *argv[])
         //Now move the right eye.
         TrackCorrelTarget(OWL);
 
-
-        // Update Familarity Map
+        //=====================================Update Familiarity Map=====================================
         // Familiar map to inhibit salient targets once observed (this is a global map)
         double longitude = (((Ly - LyC) / DEG2PWM) + maxLoc.y * PX2DEG);//calculate longitude as the global map is a spherical projection
         // ensure dwell time at perimeter of map is similar to that at centre.
@@ -404,12 +430,14 @@ int main(int argc, char *argv[])
             imshow("PanView", PanViewSmall);
         }
 
+		//=======================================Show windows===========================================
         //Draw rectangle on most salient area
         rectangle(Left,
                   target,
                   Scalar::all(255),
                   2, 8, 0);
-
+		
+		//resize to half their size, stops overcrowding of all the opened windows
         resize(Left, Left, Left.size() / 2);
         resize(Right, Right, Right.size() / 2);
 
@@ -423,13 +451,10 @@ int main(int argc, char *argv[])
         imshow("target", OWLtempl);
         imshow("Right", Right);
 
-
-
         resize(SalienceHSV, SalienceHSV, SalienceHSV.size() / 2);
         imshow("SalienceHSV", SalienceHSV);
         
-        //=========================================Control Window for feature weights =============================================
-        //cout << "Control Window" << endl;
+        //=======================================Control Window for feature weights=======================================        
         namedWindow("Control", CV_WINDOW_AUTOSIZE);
         cvCreateTrackbar("DoG Weight", "Control", &DoGLowWeight, 100);
         cvCreateTrackbar("DoG High", "Control", &DoGHighWeight, 100);
@@ -440,20 +465,41 @@ int main(int argc, char *argv[])
         cvCreateTrackbar("Familiar", "Control", &FamiliarWeight, 100);
         cvCreateTrackbar("fovea", "Control", &foveaWeight, 100);
 
-
-        //At the end of every loop, add to the familiar map, effectively adding a slow decay to the owls "memory" of interest.
+		//=====================Decay of familiarity=====================
+        //At the end of every loop, add to the familiar map,
+		// effectively creating a slow decay to the owls "memory" of interest.
         add(Scalar(1, 1, 1), familiar, familiar);
 
+		//Could the '1' could be stored in a variable, 
+		// and placed as a slider on the control window?
+
+		//=====================Wait for user input=====================
+		//Wait 20ms for user input, 
+		// also gives enough time for cameras to capture a stable frame
         int key = waitKey(20);
         switch (key)
         {
-        case 'r':
+        case 'r'://Reset/clear familiarity map
             familiar.setTo(double(255));
             break;
+		case 27: //[ESC] key, Exit the application
+		case 'q':
+			cout << "Exiting Application" << endl;
+			inLoop = false;
+			break;
 
         }
-    }
-}
+    }//End of inLoop
+	
+	 //Disconnect from Owl
+#ifdef _WIN32
+	cout << "Closing Socket" << endl;
+	closesocket(u_sock);
+#else
+	close(clientSock);
+#endif
+	return 0;
+}//End of main
 
 //====================================================================================//
 // SERVO FUNCTIONS
