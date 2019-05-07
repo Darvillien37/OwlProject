@@ -350,7 +350,8 @@ int main(int argc, char *argv[])
 		// Move left eye based on salience, but don't move the right eye
 		//ServoRel(rxDifference, ryDifference, lxDifference, lyDifference, (Lx - LxC) / 100);	
 
-		//With this, no need to read a second frame in the loop.
+		//With this, no need to read a second frame in the loop. 
+		// plus i believe we can use CalculateDistance() accurately here too
 #pragma endregion
 
         // Move left eye based on salience, but don't move the right eye
@@ -658,12 +659,12 @@ string TrackCorrelTarget (OwlCorrel OWL){
 // a lower numbers are a higher pass, and visa versa
 // k is normally 3 or 5
 Mat DoGFilter(Mat src, int k, int g){
-    Mat srcC;
-    src.convertTo(srcC, CV_32FC1);
+    Mat srcC; //Variable to hold the copied image 
+    src.convertTo(srcC, CV_32FC1);//convert the image to 32bit floating point
     Mat g1, g2;
-    GaussianBlur(srcC, g1, Size(g, g), 0);
+    GaussianBlur(srcC, g1, Size(g, g), 0);//Blur the images
     GaussianBlur(srcC, g2, Size(g * k, g * k), 0);
-    srcC = (g1 - g2) * 2;
+    srcC = (g1 - g2) * 2;//Difference calculation
     return srcC;
 }
 
