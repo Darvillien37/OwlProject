@@ -664,7 +664,7 @@ Mat DoGFilter(Mat src, int k, int g){
     Mat g1, g2;
     GaussianBlur(srcC, g1, Size(g, g), 0);//Blur the images
     GaussianBlur(srcC, g2, Size(g * k, g * k), 0);
-    srcC = (g1 - g2) * 2;//Difference calculation
+    srcC = (g1 - g2) * 2;//set the final result as the difference
     return srcC;
 }
 
@@ -680,11 +680,11 @@ Mat SobelFilter(Mat greySrc, int scale, int delta)
     Sobel(greySrc, grad_x, ddepth, 1, 0, 3, scale, delta, BORDER_DEFAULT);
     Sobel(greySrc, grad_y, ddepth, 0, 1, 3, scale, delta, BORDER_DEFAULT);
 
-    //Convert the partial results back to grayscale.
+    //Convert the partial results back to greyscale.
     convertScaleAbs( grad_x, abs_grad_x );
     convertScaleAbs( grad_y, abs_grad_y );
 
-    //Finaly approximate the 'Gradient' by adding both direcitonal gradients.
+    //Finally approximate the 'Gradient' by adding both directional gradients.
     addWeighted(abs_grad_x, 0.5, abs_grad_y, 0.5, 0, result);
 
     return result;
@@ -703,10 +703,8 @@ Mat CannyFilter(Mat greySrc) {
 }
 
 Mat ColourFilter(Mat colourSrc) {
-
     Mat result;
-
-    //Threshold for the greyscale luminocity.
+    //Threshold for the greyscale luminosity.
     int threshold = 130; //130 default.
 
     //Convert the mat to HSV
@@ -727,7 +725,6 @@ Mat ColourFilter(Mat colourSrc) {
             }
         }
     }
-
     //We then convert the colour map to greyscale for the saliency map.
     cvtColor(result, result, COLOR_BGR2GRAY);
 
@@ -735,16 +732,12 @@ Mat ColourFilter(Mat colourSrc) {
     for( int y = 0; y < result.rows; y++ ) {
         //Then the x pixels, so we have a pixel at y,x
         for( int x = 0; x < result.cols; x++ ) {
-            //Then if the luminocity is blow threshold, just set the pixel to 0
+            //Then if the luminosity is blow threshold, just set the pixel to 0
             //Essentially ignoring it.
             if (result.at<uchar>(y, x) <= threshold) {
                 result.at<uchar>(y, x) = 0;
             }
         }
-    }
-
-    //We can then blur the image to reduce noise, not sure if this is a good idea?
-    //GaussianBlur(result, result, Size(3, 3), 0);
-
+    }    
     return result;
 }
